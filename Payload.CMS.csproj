@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Package identity — update when the library is renamed -->
+    <PackageId>Payload.CMS</PackageId>
+    <Version>0.1.0</Version>
+    <Authors><!-- your name or org --></Authors>
+    <Copyright>Copyright © 2026 <!-- your name or org --></Copyright>
+    <Description>A typed .NET REST client for the Payload CMS API.</Description>
+    <PackageTags>payloadcms;cms;rest;api;http</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl><!-- https://github.com/your-org/your-repo --></RepositoryUrl>
+    <PackageProjectUrl><!-- https://github.com/your-org/your-repo --></PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Emit XML doc file so IntelliSense works for consumers -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Symbols for step-through debugging -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <!-- Exclude the test project — it lives in a subfolder but belongs to a separate assembly -->
+    <Compile Remove="Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Payload.CMS.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
