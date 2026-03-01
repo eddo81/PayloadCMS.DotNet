@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36127.28
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payload.CMS", "Payload.CMS.csproj", "{CC549D45-F47D-409A-894B-CDB816831B75}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PayloadCMS.DotNet", "PayloadCMS.DotNet.csproj", "{CC549D45-F47D-409A-894B-CDB816831B75}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Internal", "Internal", "{C7362AAE-0F59-4F17-A23B-25C7925E620B}"
 	ProjectSection(SolutionItems) = preProject

@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Payload.CMS.csproj" />
+    <ProjectReference Include="..\PayloadCMS.DotNet.csproj" />
   </ItemGroup>
 
 </Project>
