@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Public;
+﻿namespace PayloadCMS.DotNet;
 
 /// <summary>
 /// A structured error thrown on failed Payload CMS requests.

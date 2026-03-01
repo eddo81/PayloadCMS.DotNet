@@ -1,4 +1,4 @@
-﻿using Payload.CMS.Public.Config;
+﻿using PayloadCMS.DotNet.Config;
 
 namespace Payload.CMS.Tests;
 

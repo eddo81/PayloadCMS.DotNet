@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace Payload.CMS.Public.Extensions;
+namespace PayloadCMS.DotNet.Extensions;
 
 /// <summary>
 /// Extension methods for registering <see cref="PayloadSDK"/> with an ASP.NET Core DI container.
@@ -15,11 +15,7 @@ public static class ServiceCollectionExtensions
     /// <param name="baseUrl">The base URL of the Payload CMS instance (e.g. <c>https://cms.example.com</c>).</param>
     /// <param name="configureClient">Optional delegate to configure the underlying <see cref="System.Net.Http.HttpClient"/> (e.g. timeouts, default headers).</param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
-    public static IServiceCollection AddPayloadSDK(
-        this IServiceCollection services,
-        string baseUrl,
-        Action<System.Net.Http.HttpClient>? configureClient = null)
-    {
+    public static IServiceCollection AddPayloadSDK(this IServiceCollection services, string baseUrl, Action<System.Net.Http.HttpClient>? configureClient = null) {
         services.AddHttpClient(nameof(PayloadSDK), httpClient =>
         {
             configureClient?.Invoke(httpClient);

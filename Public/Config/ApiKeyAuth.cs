@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Internal.Contracts;
+﻿using PayloadCMS.DotNet.Internal.Contracts;
 
-namespace Payload.CMS.Public.Config;
+namespace PayloadCMS.DotNet.Config;
 
 /// <summary>
 /// <see cref="IAuthCredential"/> for Payload CMS <c>API Key</c> authentication.

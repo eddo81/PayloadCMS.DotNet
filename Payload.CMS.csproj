@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
 
     <!-- Package identity — update when the library is renamed -->
-    <PackageId>Payload.CMS</PackageId>
+    <AssemblyName>PayloadCMS.DotNet</AssemblyName>
+    <PackageId>PayloadCMS.DotNet</PackageId>
     <Version>0.1.0-preview.1</Version>
     <Authors>eddo81</Authors>
     <Copyright>Copyright © 2026 eddo81</Copyright>

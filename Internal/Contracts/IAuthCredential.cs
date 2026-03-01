@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Internal.Contracts;
+﻿namespace PayloadCMS.DotNet.Internal.Contracts;
 
 /// <summary>
 /// Defines a credential that can apply authentication

@@ -1,7 +1,7 @@
-﻿using Payload.CMS.Internal.Attributes;
+﻿using PayloadCMS.DotNet.Internal.Attributes;
 using System.Reflection;
 
-namespace Payload.CMS.Internal.Utils;
+namespace PayloadCMS.DotNet.Internal.Utils;
 internal static class EnumExtensions
 {
     public static string ToStringValue(this Enum value)

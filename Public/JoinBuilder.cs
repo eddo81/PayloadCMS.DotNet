@@ -1,7 +1,7 @@
-﻿using Payload.CMS.Internal;
-using Payload.CMS.Public.Enums;
+﻿using PayloadCMS.DotNet.Internal;
+using PayloadCMS.DotNet.Enums;
 
-namespace Payload.CMS.Public;
+namespace PayloadCMS.DotNet;
 
 /// <summary>
 /// Collects and composes <c>Join Field</c> query operations.

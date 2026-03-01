@@ -1,8 +1,8 @@
-﻿using Payload.CMS.Internal;
-using Payload.CMS.Internal.Contracts;
-using Payload.CMS.Public.Enums;
+﻿using PayloadCMS.DotNet.Internal;
+using PayloadCMS.DotNet.Internal.Contracts;
+using PayloadCMS.DotNet.Enums;
 
-namespace Payload.CMS.Public;
+namespace PayloadCMS.DotNet;
 
 /// <summary>
 /// Fluent builder for nested <c>where</c>/<c>and</c>/<c>or</c> clauses.

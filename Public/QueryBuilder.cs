@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Public.Enums;
+﻿using PayloadCMS.DotNet.Enums;
 
-namespace Payload.CMS.Public;
+namespace PayloadCMS.DotNet;
 
 /// <summary>
 /// Fluent builder for Payload CMS REST API query parameters.

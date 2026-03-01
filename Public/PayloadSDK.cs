@@ -1,13 +1,13 @@
-﻿using Payload.CMS.Internal.Contracts;
-using Payload.CMS.Internal.Upload;
-using Payload.CMS.Internal.Utils;
-using Payload.CMS.Public.Config;
-using Payload.CMS.Public.Models.Auth;
-using Payload.CMS.Public.Models.Collection;
-using Payload.CMS.Public.Upload;
-using HttpMethod = Payload.CMS.Public.Enums.HttpMethod;
+using System.Text.Json;
+using PayloadCMS.DotNet.Config;
+using PayloadCMS.DotNet.Internal.Contracts;
+using PayloadCMS.DotNet.Internal.Upload;
+using PayloadCMS.DotNet.Internal.Utils;
+using PayloadCMS.DotNet.Models.Auth;
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Upload;
 
-namespace Payload.CMS.Public;
+namespace PayloadCMS.DotNet;
 
 /// <summary>
 /// HTTP client for the Payload CMS REST API.
@@ -21,8 +21,6 @@ public class PayloadSDK
     private IAuthCredential? _auth = null;
     private readonly QueryStringEncoder _encoder = new();
     private readonly HttpClient _httpClient;
-
-    private record RequestConfig(HttpMethod? Method = null, HttpContent? Body = null);
 
     /// <summary>
     /// Initializes a new instance of <see cref="PayloadSDK"/>.
@@ -105,23 +103,15 @@ public class PayloadSDK
     /// Uses the same headers, auth, and error handling
     /// but returns raw JSON instead of a DTO.</para>
     /// </summary>
-    /// <param name="method">The HTTP method to use.</param>
-    /// <param name="path">URL path appended to the base URL (e.g. <c>/api/custom-endpoint</c>).</param>
-    /// <param name="body">Optional JSON body to send.</param>
-    /// <param name="query">Optional <see cref="QueryBuilder"/> for query parameters.</param>
+    /// <param name="config">The request options: method, path, optional body and query.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The parsed JSON response, or <c>null</c> for empty bodies.</returns>
-    public async Task<Dictionary<string, object?>?> Request(HttpMethod method, string path, Dictionary<string, object?>? body = null, QueryBuilder? query = null, CancellationToken cancellationToken = default)
+    public async Task<Dictionary<string, object?>?> Request(RequestConfig config, CancellationToken cancellationToken = default)
     {
-        var url = _AppendQueryString($"{_baseUrl}{path}", query);
-        var config = new RequestConfig(Method: method);
+        var url = _AppendQueryString($"{_baseUrl}{config.Path}", config.Query);
+        HttpContent? body = config.Body != null ? JsonParser.Serialize(config.Body) : null;
 
-        if (body != null)
-        {
-            config = config with { Body = JsonParser.Serialize(body) };
-        }
-
-        return await _Fetch(url, config, cancellationToken);
+        return await _Fetch(url, config.Method, body, cancellationToken);
     }
 
     /// <summary>
@@ -150,17 +140,16 @@ public class PayloadSDK
     /// <see cref="PayloadError"/> instances.</para>
     /// </summary>
     /// <param name="url">Fully resolved request URL.</param>
-    /// <param name="config">Optional request configuration overrides.</param>
+    /// <param name="method">Optional HTTP method; defaults to GET.</param>
+    /// <param name="body">Optional request body.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>Parsed JSON, or <c>null</c> for empty responses.</returns>
     /// <exception cref="PayloadError">On non-2xx responses.</exception>
     /// <exception cref="Exception">On network, parsing, or abort failures.</exception>
-    private async Task<Dictionary<string, object?>?> _Fetch(string url, RequestConfig? config = null, CancellationToken cancellationToken = default)
+    private async Task<Dictionary<string, object?>?> _Fetch(string url, HttpMethod? method = null, HttpContent? body = null, CancellationToken cancellationToken = default)
     {
-        config ??= new RequestConfig();
-
         Dictionary<string, object?>? json = null;
-        var defaultMethod = HttpMethod.GET;
+        var defaultMethod = HttpMethod.Get;
 
         var headers = new Dictionary<string, string>
         {
@@ -173,7 +162,7 @@ public class PayloadSDK
             headers[kvp.Key] = kvp.Value;
         }
 
-        if (config.Body is MultipartFormDataContent)
+        if (body is MultipartFormDataContent)
         {
             headers.Remove("Content-Type");
         }
@@ -185,8 +174,8 @@ public class PayloadSDK
 
         try
         {
-            var method = config.Method ?? defaultMethod;
-            var request = new HttpRequestMessage(new System.Net.Http.HttpMethod(method.ToStringValue()), url);
+            var resolvedMethod = method ?? defaultMethod;
+            var request = new HttpRequestMessage(resolvedMethod, url);
 
             foreach (var kvp in headers)
             {
@@ -198,13 +187,13 @@ public class PayloadSDK
                 request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
             }
 
-            if (config.Body != null)
+            if (body != null)
             {
-                request.Content = config.Body;
+                request.Content = body;
             }
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
-            
+
             var text = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (text.Length > 0)
@@ -227,7 +216,11 @@ public class PayloadSDK
         {
             string message = "[PayloadError] Fetch failed";
 
-            if (error is HttpRequestException)
+            if (error is JsonException)
+            {
+                message = "[PayloadError] Failed to parse JSON response";
+            }
+            else if (error is HttpRequestException)
             {
                 message = "[PayloadError] Network failure or CORS issue";
             }
@@ -292,15 +285,18 @@ public class PayloadSDK
     public async Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
+        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data)
-        );
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
+        Dictionary<string, object?> doc = new();
 
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = DocumentDTO.FromJson(json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> doc ? doc : new());
+        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        {
+            doc = value;
+        }
+
+        var dto = DocumentDTO.FromJson(doc);
 
         return dto;
     }
@@ -315,11 +311,9 @@ public class PayloadSDK
     public async Task<PaginatedDocsDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
     {
         var url = _AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
-        var method = HttpMethod.DELETE;
+        var method = HttpMethod.Delete;
 
-        var config = new RequestConfig(Method: method);
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = PaginatedDocsDTO.FromJson(json);
 
         return dto;
@@ -335,12 +329,17 @@ public class PayloadSDK
     public async Task<DocumentDTO> DeleteById(string slug, string id, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}";
-        var method = HttpMethod.DELETE;
+        var method = HttpMethod.Delete;
 
-        var config = new RequestConfig(Method: method);
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
+        Dictionary<string, object?> doc = new();
 
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = DocumentDTO.FromJson(json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> doc ? doc : new());
+        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        {
+            doc = value;
+        }
+
+        var dto = DocumentDTO.FromJson(doc);
 
         return dto;
     }
@@ -357,14 +356,10 @@ public class PayloadSDK
     public async Task<PaginatedDocsDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
         var url = _AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
-        var method = HttpMethod.PATCH;
+        var method = HttpMethod.Patch;
+        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data)
-        );
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
         var dto = PaginatedDocsDTO.FromJson(json);
 
         return dto;
@@ -382,15 +377,18 @@ public class PayloadSDK
     public async Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?> data, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}";
-        var method = HttpMethod.PATCH;
+        var method = HttpMethod.Patch;
+        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data)
-        );
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
+        Dictionary<string, object?> doc = new();
 
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = DocumentDTO.FromJson(json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> doc ? doc : new());
+        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        {
+            doc = value;
+        }
+
+        var dto = DocumentDTO.FromJson(doc);
 
         return dto;
     }
@@ -436,15 +434,18 @@ public class PayloadSDK
     public async Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
+        var body = JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: JsonParser.Serialize(data)
-        );
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
+        Dictionary<string, object?> result = new();
 
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = DocumentDTO.FromJson(json.ContainsKey("result") && json["result"] is Dictionary<string, object?> result ? result : new());
+        if (json.ContainsKey("result") && json["result"] is Dictionary<string, object?> value)
+        {
+            result = value;
+        }
+
+        var dto = DocumentDTO.FromJson(result);
 
         return dto;
     }
@@ -491,11 +492,9 @@ public class PayloadSDK
     public async Task<DocumentDTO> RestoreVersion(string slug, string id, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
 
-        var config = new RequestConfig(Method: method);
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = DocumentDTO.FromJson(json);
 
         return dto;
@@ -543,12 +542,17 @@ public class PayloadSDK
     public async Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
 
-        var config = new RequestConfig(Method: method);
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
+        Dictionary<string, object?> doc = new();
 
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = DocumentDTO.FromJson(json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> doc ? doc : new());
+        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        {
+            doc = value;
+        }
+
+        var dto = DocumentDTO.FromJson(doc);
 
         return dto;
     }
@@ -563,14 +567,10 @@ public class PayloadSDK
     public async Task<LoginResultDTO> Login(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/login";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
+        var body = JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: JsonParser.Serialize(data)
-        );
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
         var dto = LoginResultDTO.FromJson(json);
 
         return dto;
@@ -600,11 +600,9 @@ public class PayloadSDK
     public async Task<RefreshResultDTO> RefreshToken(string slug, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/refresh-token";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
 
-        var config = new RequestConfig(Method: method);
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = RefreshResultDTO.FromJson(json);
 
         return dto;
@@ -620,14 +618,10 @@ public class PayloadSDK
     public async Task<MessageDTO> ForgotPassword(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/forgot-password";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
+        var body = JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: JsonParser.Serialize(data)
-        );
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
         var dto = MessageDTO.FromJson(json);
 
         return dto;
@@ -643,14 +637,10 @@ public class PayloadSDK
     public async Task<ResetPasswordResultDTO> ResetPassword(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/reset-password";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
+        var body = JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: JsonParser.Serialize(data)
-        );
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
         var dto = ResetPasswordResultDTO.FromJson(json);
 
         return dto;
@@ -666,11 +656,9 @@ public class PayloadSDK
     public async Task<MessageDTO> VerifyEmail(string slug, string token, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/verify/{Uri.EscapeDataString(token)}";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
 
-        var config = new RequestConfig(Method: method);
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = MessageDTO.FromJson(json);
 
         return dto;
@@ -685,12 +673,9 @@ public class PayloadSDK
     public async Task<MessageDTO> Logout(string slug, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/logout";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
 
-        var config = new RequestConfig(Method: method);
-
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = MessageDTO.FromJson(json);
 
         return dto;
@@ -706,14 +691,10 @@ public class PayloadSDK
     public async Task<MessageDTO> Unlock(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/unlock";
-        var method = HttpMethod.POST;
+        var method = HttpMethod.Post;
+        var body = JsonParser.Serialize(data);
 
-        var config = new RequestConfig(
-            Method: method,
-            Body: JsonParser.Serialize(data)
-        );
-
-        var json = await _Fetch(url, config, cancellationToken) ?? new Dictionary<string, object?>();
+        var json = await _Fetch(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
         var dto = MessageDTO.FromJson(json);
 
         return dto;

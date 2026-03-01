@@ -1,10 +1,10 @@
-﻿using Payload.CMS.Internal.Contracts;
+﻿using PayloadCMS.DotNet.Internal.Contracts;
 
-namespace Payload.CMS.Internal;
+namespace PayloadCMS.DotNet.Internal;
 
 /// <summary>
 /// Accumulates join-scoped operations for a single <c>Join Field</c>.
-/// <para>Used internally by <see cref="Payload.CMS.Public.JoinBuilder"/> to collect <c>limit</c>,
+/// <para>Used internally by <see cref="PayloadCMS.DotNet.JoinBuilder"/> to collect <c>limit</c>,
 /// <c>sort</c>, <c>where</c>, and <c>count</c> per join target.</para>
 /// </summary>
 internal class JoinClause : IClause

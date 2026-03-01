@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Internal.Contracts;
+﻿namespace PayloadCMS.DotNet.Internal.Contracts;
 
 /// <summary>
 /// Contract for a serializable query clause strategy.

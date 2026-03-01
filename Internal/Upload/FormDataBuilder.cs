@@ -1,8 +1,8 @@
-﻿using Payload.CMS.Internal.Contracts;
+﻿using PayloadCMS.DotNet.Internal.Contracts;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
-namespace Payload.CMS.Internal.Upload;
+namespace PayloadCMS.DotNet.Internal.Upload;
 
 /// <summary>
 /// Constructs a <c>FormData</c> body for file upload requests.

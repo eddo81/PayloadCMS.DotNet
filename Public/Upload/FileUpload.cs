@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Internal.Contracts;
+﻿using PayloadCMS.DotNet.Internal.Contracts;
 
-namespace Payload.CMS.Public.Upload;
+namespace PayloadCMS.DotNet.Upload;
 
 /// <summary>
 /// Represents a file to upload to a Payload CMS <c>upload</c> collection.

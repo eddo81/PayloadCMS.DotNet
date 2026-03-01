@@ -1,4 +1,4 @@
-namespace Payload.CMS.Internal.Utils;
+﻿namespace PayloadCMS.DotNet.Internal.Utils;
 /// <summary>
 /// Serializes nested objects into Payload CMS query strings.
 /// <para>Preserves Payload's bracketed syntax (e.g. <c>where[title][equals]=foo</c>)

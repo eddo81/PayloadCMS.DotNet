@@ -9,9 +9,9 @@ Read TS source files directly with Read/Glob/Grep for parity reference — no HT
 
 ## Project Setup
 - Target: .NET 6.0 + .NET 8.0 (multi-targeted), nullable enabled, implicit usings enabled
-- No external dependencies (zero-dep per design philosophy)
-- All files currently sit at project root (solution has logical folders via .sln, not physical subdirectories)
-- Solution: `Payload.CMS.sln`, main project: `Payload.CMS.csproj`, tests: `Tests/Payload.CMS.Tests.csproj`
+- Dependencies: `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Http` (DI extension), `Microsoft.SourceLink.GitHub` (build-time only)
+- Solution: `Payload.CMS.sln`, main project: `Payload.CMS.csproj` (`PackageId: PayloadCMS.DotNet`, `AssemblyName: PayloadCMS.DotNet`), tests: `Tests/Payload.CMS.Tests.csproj`
+- Test project: xUnit v3, targets net8.0 only, `OutputType=Exe`
 
 ## Core Type Mappings
 | TypeScript | C# |
@@ -28,8 +28,12 @@ Read TS source files directly with Read/Glob/Grep for parity reference — no HT
 
 ## Enum Pattern
 Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` extension method (via reflection).
-Both `Operator` and `HttpMethod` follow this pattern.
+`Operator` follows this pattern.
 `GetMember` must use `MemberTypes.Field, BindingFlags.Public | BindingFlags.Static` to avoid matching inherited `object` methods when an enum value is named `Equals`.
+
+## Port Divergences
+- **HttpMethod**: TypeScript and Dart use a custom `HttpMethod` enum (no native type). C# uses `System.Net.Http.HttpMethod` (platform-native). This is a justified platform divergence — `HttpMethod` is NOT exported from the C# package.
+- **`RequestConfig`**: Public `sealed record` in `PayloadCMS.DotNet.Config`, used as the options object for `PayloadSDK.Request()`. Mirrors the TS inline options object `{ method, path, body?, query? }`. Internal `_Fetch` takes `(url, method?, body?)` directly — no private wrapper record.
 
 ## Code Style (enforced across all files)
 - **Always braces** on `if`, `foreach`, `for` — no bracketless one-liners, ever
@@ -54,7 +58,7 @@ Both `Operator` and `HttpMethod` follow this pattern.
 ### Done
 - `IAuthCredential`, `IClause`, `IFileUpload` — contracts
 - `ApiKeyAuth`, `JwtAuth` — auth credentials
-- `Operator`, `HttpMethod` — enums with StringValue
+- `Operator` — enum with StringValue (HttpMethod enum dropped — uses `System.Net.Http.HttpMethod`)
 - `StringValueAttribute`, `EnumExtensions` — enum support
 - `WhereClause`, `AndClause`, `OrClause`, `JoinClause` — internal clause strategy
 - `FormDataBuilder` — multipart form data builder
@@ -67,21 +71,24 @@ Both `Operator` and `HttpMethod` follow this pattern.
 - `QueryBuilder` — public fluent facade over WhereBuilder + JoinBuilder
 - `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Cause`)
 - `FileUpload` — public `IFileUpload` sealed record implementation
-- `Client` — main client (all public methods + `_Fetch`, `_AppendQueryString`, `_NormalizeUrl`)
-- xUnit test suite — 32 tests across `QueryStringEncoder`, `QueryBuilder`, `JoinBuilder`, `ApiKeyAuth`
+- `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
+- `PayloadSDK` — main client (all public methods + `_Fetch`, `_AppendQueryString`, `_NormalizeUrl`) in namespace `PayloadCMS.DotNet`
+- `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
+- xUnit v3 test suite — 32 tests across `QueryStringEncoder`, `QueryBuilder`, `JoinBuilder`, `ApiKeyAuth`
 
-### Client Notes
-- Class named `Client` (in namespace `Payload.CMS.Public`)
-- `using HttpMethod = Payload.CMS.Public.Enums.HttpMethod;` alias required due to implicit using conflict
-- Internal `RequestConfig` record: `(HttpMethod? Method = null, HttpContent? Body = null)`
+### PayloadSDK Notes
+- Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
+- No `headers` constructor parameter — use `SetHeaders()` after construction
+- Uses `System.Net.Http.HttpMethod` directly (no custom enum alias needed)
+- `_Fetch(url, HttpMethod? method, HttpContent? body, ct)` — no wrapper record; callers pass method/body directly. `HttpContent body` typed explicitly where ternary mixes `MultipartFormDataContent` and `StringContent`
 - JSON body → `JsonParser.Serialize(data)` → `StringContent`
 - File body → `FormDataBuilder.Build(file, data)` → `MultipartFormDataContent`
 - `Content-Type` header is skipped when adding to `HttpRequestMessage.Headers` (handled by `HttpContent` automatically)
 - JSON parsing via `JsonParser.Parse` / `JsonParser.ConvertElement` (centralized in `Internal/Utils/JsonParser.cs`)
-- `json['doc']` inline pattern: `json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> doc ? doc : new()`
-- `IAuthCredential` and `IFileUpload` changed to `public` (required for public API surface)
+- `doc`/`result` unwrapping pattern: pre-initialize `Dictionary<string, object?> doc = new();`, then `if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value) { doc = value; }`
+- `IAuthCredential` and `IFileUpload` are `public` (required for public API surface)
 - `PayloadError.Cause` is `object?` (matches TS's `unknown`), `InnerException` set via `cause as Exception`
-- `CancellationToken cancellationToken = default` on all 25 public async methods, propagated to `SendAsync` and `ReadAsStringAsync`
+- `CancellationToken cancellationToken = default` on all public async methods, propagated to `SendAsync` and `ReadAsStringAsync`
 
 ## QueryStringEncoder Rules (critical for parity)
 - Nested objects: bracket notation `where[title][equals]=foo`

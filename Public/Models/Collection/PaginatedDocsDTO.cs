@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Internal.Utils;
+﻿using PayloadCMS.DotNet.Internal.Utils;
 
-namespace Payload.CMS.Public.Models.Collection;
+namespace PayloadCMS.DotNet.Models.Collection;
 
 /// <summary>
 /// Represents a paginated collection of Payload CMS documents.

@@ -1,8 +1,8 @@
-﻿using Payload.CMS.Internal.Contracts;
-using Payload.CMS.Internal.Utils;
-using Payload.CMS.Public.Enums;
+﻿using PayloadCMS.DotNet.Internal.Contracts;
+using PayloadCMS.DotNet.Internal.Utils;
+using PayloadCMS.DotNet.Enums;
 
-namespace Payload.CMS.Internal;
+namespace PayloadCMS.DotNet.Internal;
 
 /// <summary>
 /// Represents a single field comparison condition.

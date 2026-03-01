@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Internal.Attributes;
+﻿using PayloadCMS.DotNet.Internal.Attributes;
 
-namespace Payload.CMS.Public.Enums;
+namespace PayloadCMS.DotNet.Enums;
 
 /// <summary>Comparison operators for Payload CMS <c>where</c> query clauses.</summary>
 public enum Operator

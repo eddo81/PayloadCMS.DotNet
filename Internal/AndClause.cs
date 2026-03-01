@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Internal.Contracts;
+﻿using PayloadCMS.DotNet.Internal.Contracts;
 
-namespace Payload.CMS.Internal;
+namespace PayloadCMS.DotNet.Internal;
 
 /// <summary>
 /// Represents a logical <c>AND</c> grouping of <see cref="IClause"/> instances.

@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace Payload.CMS.Internal.Utils;
+namespace PayloadCMS.DotNet.Internal.Utils;
 
 /// <summary>
 /// Handles JSON serialization and deserialization at the HTTP boundary.
@@ -35,19 +35,12 @@ internal static class JsonParser
     /// </summary>
     /// <param name="text">The JSON string to parse.</param>
     /// <returns>The parsed dictionary, or <c>null</c> if the root is not a JSON object.</returns>
-    /// <exception cref="Exception">If the JSON is malformed.</exception>
+    /// <exception cref="JsonException">If the JSON is malformed.</exception>
     internal static Dictionary<string, object?>? Parse(string text)
     {
-        try
-        {
-            var element = JsonSerializer.Deserialize<JsonElement>(text);
+        var element = JsonSerializer.Deserialize<JsonElement>(text);
 
-            return ConvertElement(element) as Dictionary<string, object?>;
-        }
-        catch (JsonException error)
-        {
-            throw new Exception("Failed to parse JSON response", error);
-        }
+        return ConvertElement(element) as Dictionary<string, object?>;
     }
 
     internal static object? ConvertElement(JsonElement element)

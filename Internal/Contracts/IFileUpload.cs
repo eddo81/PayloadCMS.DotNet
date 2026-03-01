@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Internal.Contracts;
+﻿namespace PayloadCMS.DotNet.Internal.Contracts;
 
 /// <summary>
 /// Defines the shape of a file for Payload CMS <c>upload</c> collections.

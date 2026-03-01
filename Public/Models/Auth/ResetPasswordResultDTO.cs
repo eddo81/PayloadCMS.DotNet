@@ -1,6 +1,6 @@
-﻿using Payload.CMS.Public.Models.Collection;
+﻿using PayloadCMS.DotNet.Models.Collection;
 
-namespace Payload.CMS.Public.Models.Auth;
+namespace PayloadCMS.DotNet.Models.Auth;
 
 /// <summary>
 /// Represents the response from a Payload CMS <c>reset-password</c> endpoint.

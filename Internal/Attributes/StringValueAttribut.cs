@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Internal.Attributes;
+﻿namespace PayloadCMS.DotNet.Internal.Attributes;
 
 using System;
 

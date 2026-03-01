@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Public.Models.Auth;
+﻿namespace PayloadCMS.DotNet.Models.Auth;
 
 /// <summary>
 /// Represents a simple message response from Payload CMS.

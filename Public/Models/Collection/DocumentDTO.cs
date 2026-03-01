@@ -1,4 +1,4 @@
-﻿namespace Payload.CMS.Public.Models.Collection;
+﻿namespace PayloadCMS.DotNet.Models.Collection;
 
 /// <summary>
 /// Represents a Payload CMS document.

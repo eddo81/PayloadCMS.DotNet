@@ -1,7 +1,7 @@
-﻿using Payload.CMS.Internal.Utils;
-using Payload.CMS.Public.Models.Collection;
+﻿using PayloadCMS.DotNet.Internal.Utils;
+using PayloadCMS.DotNet.Models.Collection;
 
-namespace Payload.CMS.Public.Models.Auth;
+namespace PayloadCMS.DotNet.Models.Auth;
 
 /// <summary>
 /// Represents the response from a Payload CMS <c>login</c> endpoint.
