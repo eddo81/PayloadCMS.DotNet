@@ -902,21 +902,21 @@ All supported Payload CMS where operators:
 ```csharp
 public enum Operator
 {
-    Equals, NotEquals, Contains, Like, NotLike,
-    In, NotIn, All, Exists,
-    GreaterThan, GreaterThanEqual, LessThan, LessThanEqual,
-    Within, Intersects, Near,
+    Equals, 
+    NotEquals, 
+    Contains, 
+    Like, 
+    NotLike,
+    In, 
+    NotIn, 
+    All, 
+    Exists,
+    GreaterThan, 
+    GreaterThanEqual, 
+    LessThan, 
+    LessThanEqual,
+    Within, 
+    Intersects, 
+    Near,
 }
-```
-
-### HttpMethod
-
-`Request()` accepts `System.Net.Http.HttpMethod` — the platform-native type, no custom enum needed:
-
-```csharp
-HttpMethod.Get
-HttpMethod.Post
-HttpMethod.Put
-HttpMethod.Patch
-HttpMethod.Delete
 ```
