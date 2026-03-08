@@ -21,7 +21,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name (e.g. "relatedPosts").</param>
     /// <returns>The clause instance, or <c>null</c> if <c>on</c> is empty.</returns>
-    private JoinClause? _getOrCreateClause(string on)
+    private JoinClause? GetOrCreateClause(string on)
     {
         if (on == "")
         {
@@ -45,7 +45,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <returns>The cached or newly created builder.</returns>
-    private WhereBuilder _getOrCreateWhereBuilder(string on)
+    private WhereBuilder GetOrCreateWhereBuilder(string on)
     {
         _whereBuilders.TryGetValue(on, out WhereBuilder? builder);
 
@@ -66,7 +66,7 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder Limit(string on, int value)
     {
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
@@ -84,7 +84,7 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder Page(string on, int value)
     {
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
@@ -107,7 +107,7 @@ public class JoinBuilder
             return this;
         }
 
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
@@ -126,9 +126,9 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder SortByDescending(string on, string field)
     {
-        var _field = field.StartsWith('-') ? field : $"-{field}";
+        var sortField = field.StartsWith('-') ? field : $"-{field}";
 
-        return Sort(on, _field);
+        return Sort(on, sortField);
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder Count(string on, bool value = true)
     {
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
@@ -161,11 +161,11 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder Where(string on, string field, Operator op, object? value)
     {
-        var builder = _getOrCreateWhereBuilder(on);
+        var builder = GetOrCreateWhereBuilder(on);
 
         builder.Where(field, op, value);
 
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
@@ -183,11 +183,11 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder And(string on, Action<WhereBuilder> callback)
     {
-        var builder = _getOrCreateWhereBuilder(on);
+        var builder = GetOrCreateWhereBuilder(on);
 
         builder.And(callback);
 
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
@@ -205,11 +205,11 @@ public class JoinBuilder
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder Or(string on, Action<WhereBuilder> callback)
     {
-        var builder = _getOrCreateWhereBuilder(on);
+        var builder = GetOrCreateWhereBuilder(on);
 
         builder.Or(callback);
 
-        var clause = _getOrCreateClause(on);
+        var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {

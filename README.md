@@ -39,7 +39,7 @@ builder.Services.AddPayloadSDK("https://cms.example.com", httpClient =>
 });
 ```
 
-Inject `PayloadSDK` directly into controllers or services — it is registered as a singleton backed by a named `IHttpClientFactory`-managed `HttpClient`.
+Inject `PayloadSDK` directly into controllers or services — it is registered as a scoped service backed by a named `IHttpClientFactory`-managed `HttpClient`. Each HTTP request gets its own `PayloadSDK` instance, which means `SetJwtAuth()`, `SetApiKeyAuth()`, and `ClearAuth()` are safe to call per-request without affecting other concurrent users.
 
 ### Constructor
 

@@ -32,7 +32,7 @@ internal class QueryStringEncoder
     /// <returns>The query string (prefixed with <c>?</c>), or empty string.</returns>
     public string Stringify(Dictionary<string, object?> obj)
     {
-        var result = _serialize(obj, parentKey: "") ?? "";
+        var result = Serialize(obj, parentKey: "") ?? "";
 
         if (string.IsNullOrEmpty(result))
         {
@@ -48,7 +48,7 @@ internal class QueryStringEncoder
     /// </summary>
     /// <param name="value">The string to encode.</param>
     /// <returns>The encoded string.</returns>
-    private string _safeEncode(string value)
+    private string SafeEncode(string value)
     {
         var encoded = Uri.EscapeDataString(value);
 
@@ -68,7 +68,7 @@ internal class QueryStringEncoder
     /// </summary>
     /// <param name="value">The value to inspect.</param>
     /// <returns><c>true</c> if serializable as a terminal node.</returns>
-    private bool _isPrimitive(object? value)
+    private bool IsPrimitive(object? value)
     {
         return value is string or int or long or double or float or decimal or bool or DateTime;
     }
@@ -78,7 +78,7 @@ internal class QueryStringEncoder
     /// </summary>
     /// <param name="value">The value to inspect.</param>
     /// <returns><c>true</c> if the value is a nested object.</returns>
-    private bool _isPlainObject(object? value)
+    private bool IsPlainObject(object? value)
     {
         return value is Dictionary<string, object?>;
     }
@@ -89,7 +89,7 @@ internal class QueryStringEncoder
     /// <param name="obj">The object to serialize.</param>
     /// <param name="parentKey">The accumulated key path (e.g. <c>where[title]</c>).</param>
     /// <returns>A query string fragment, or <c>null</c> if empty.</returns>
-    private string? _serialize(Dictionary<string, object?> obj, string parentKey)
+    private string? Serialize(Dictionary<string, object?> obj, string parentKey)
     {
         var segments = new List<string>();
 
@@ -103,13 +103,13 @@ internal class QueryStringEncoder
 
             // Build the current key path, preserving bracket notation.
             var encodedKey = string.IsNullOrEmpty(parentKey)
-                ? _safeEncode(key)
-                : $"{parentKey}[{_safeEncode(key)}]";
+                ? SafeEncode(key)
+                : $"{parentKey}[{SafeEncode(key)}]";
 
             // Handle primitive values first — these are terminal nodes in the structure.
-            if (_isPrimitive(value))
+            if (IsPrimitive(value))
             {
-                var encoded = _serializePrimitive(encodedKey, value);
+                var encoded = SerializePrimitive(encodedKey, value);
                 if (encoded != null)
                 {
                     segments.Add(encoded);
@@ -120,14 +120,14 @@ internal class QueryStringEncoder
             // Handle arrays recursively. Uses IList to support List<T> of any element type.
             if (value is System.Collections.IList arr)
             {
-                _serializeArray(arr, encodedKey, segments);
+                SerializeArray(arr, encodedKey, segments);
                 continue;
             }
 
             // Recursively serialize nested objects into query segments.
-            if (_isPlainObject(value))
+            if (IsPlainObject(value))
             {
-                var nested = _serialize((Dictionary<string, object?>)value, encodedKey);
+                var nested = Serialize((Dictionary<string, object?>)value, encodedKey);
                 if (nested != null)
                 {
                     segments.Add(nested);
@@ -148,7 +148,7 @@ internal class QueryStringEncoder
     /// <param name="arr">The array to serialize.</param>
     /// <param name="parentKey">The current key path (e.g. <c>where[tags]</c>).</param>
     /// <param name="segments">The accumulated query segments to append to.</param>
-    private void _serializeArray(System.Collections.IList arr, string parentKey, List<string> segments)
+    private void SerializeArray(System.Collections.IList arr, string parentKey, List<string> segments)
     {
         for (int i = 0; i < arr.Count; i++)
         {
@@ -162,9 +162,9 @@ internal class QueryStringEncoder
             }
 
             // Handle primitive values first — these are terminal nodes in the structure.
-            if (_isPrimitive(value))
+            if (IsPrimitive(value))
             {
-                var encoded = _serializePrimitive(elementKey, value);
+                var encoded = SerializePrimitive(elementKey, value);
                 if (encoded != null)
                 {
                     segments.Add(encoded);
@@ -175,14 +175,14 @@ internal class QueryStringEncoder
             // Handle nested arrays recursively.
             if (value is System.Collections.IList nestedArr)
             {
-                _serializeArray(nestedArr, elementKey, segments);
+                SerializeArray(nestedArr, elementKey, segments);
                 continue;
             }
 
             // Recursively serialize nested objects into query segments.
-            if (_isPlainObject(value))
+            if (IsPlainObject(value))
             {
-                var nested = _serialize((Dictionary<string, object?>)value, elementKey);
+                var nested = Serialize((Dictionary<string, object?>)value, elementKey);
                 if (nested != null)
                 {
                     segments.Add(nested);
@@ -200,19 +200,19 @@ internal class QueryStringEncoder
     /// <param name="key">The full key path (e.g. <c>where[title][equals]</c>).</param>
     /// <param name="value">The primitive value to encode.</param>
     /// <returns>A <c>key=value</c> string, or <c>null</c> if unsupported.</returns>
-    private string? _serializePrimitive(string key, object? value)
+    private string? SerializePrimitive(string key, object? value)
     {
         if (value is DateTime dt)
         {
-            return $"{key}={_safeEncode(dt.ToString("O"))}";
+            return $"{key}={SafeEncode(dt.ToString("O"))}";
         }
 
         // Serialize bool as lowercase "true"/"false" — C# ToString() gives "True"/"False".
         if (value is bool b)
         {
-            return $"{key}={_safeEncode(b ? "true" : "false")}";
+            return $"{key}={SafeEncode(b ? "true" : "false")}";
         }
 
-        return $"{key}={_safeEncode(value!.ToString()!)}";
+        return $"{key}={SafeEncode(value!.ToString()!)}";
     }
 }

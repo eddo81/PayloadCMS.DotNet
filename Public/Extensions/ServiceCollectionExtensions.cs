@@ -8,7 +8,7 @@ namespace PayloadCMS.DotNet.Extensions;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="PayloadSDK"/> as a singleton in the DI container,
+    /// Registers <see cref="PayloadSDK"/> as a scoped service in the DI container,
     /// backed by a named <see cref="System.Net.Http.HttpClient"/> managed by <see cref="System.Net.Http.IHttpClientFactory"/>.
     /// </summary>
     /// <param name="services">The service collection to add the SDK to.</param>
@@ -21,11 +21,11 @@ public static class ServiceCollectionExtensions
             configureClient?.Invoke(httpClient);
         });
 
-        services.AddSingleton(provider =>
+        services.AddScoped(provider =>
         {
             var factory = provider.GetRequiredService<System.Net.Http.IHttpClientFactory>();
             var httpClient = factory.CreateClient(nameof(PayloadSDK));
-
+            
             return new PayloadSDK(httpClient, baseUrl);
         });
 

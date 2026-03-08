@@ -72,9 +72,9 @@ public class QueryBuilder
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder SortByDescending(string field)
     {
-        var _field = field.StartsWith('-') ? field : $"-{field}";
+        var sortField = field.StartsWith('-') ? field : $"-{field}";
 
-        return Sort(_field);
+        return Sort(sortField);
     }
 
     /// <summary>
