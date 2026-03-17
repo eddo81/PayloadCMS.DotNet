@@ -17,7 +17,7 @@ public sealed class ResetPasswordResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>reset-password</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static ResetPasswordResultDTO FromJson(Dictionary<string, object?> json)
+    internal static ResetPasswordResultDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new ResetPasswordResultDTO();
         var data = json ?? new Dictionary<string, object?>();

@@ -31,7 +31,7 @@ public sealed class PaginatedDocsDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static PaginatedDocsDTO FromJson(Dictionary<string, object?> json)
+    internal static PaginatedDocsDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new PaginatedDocsDTO();
         var data = json ?? new Dictionary<string, object?>();

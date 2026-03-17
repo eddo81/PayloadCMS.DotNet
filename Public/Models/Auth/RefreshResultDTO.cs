@@ -20,7 +20,7 @@ public sealed class RefreshResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>refresh-token</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static RefreshResultDTO FromJson(Dictionary<string, object?> json)
+    internal static RefreshResultDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new RefreshResultDTO();
         var data = json ?? new Dictionary<string, object?>();

@@ -34,6 +34,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 ## Port Divergences
 - **HttpMethod**: TypeScript and Dart use a custom `HttpMethod` enum (no native type). C# uses `System.Net.Http.HttpMethod` (platform-native). This is a justified platform divergence — `HttpMethod` is NOT exported from the C# package.
 - **`RequestConfig`**: Public `sealed record` in `PayloadCMS.DotNet.Config`, used as the options object for `PayloadSDK.Request()`. Mirrors the TS inline options object `{ method, path, body?, query? }`. Private `Request` takes `(url, method?, body?)` directly — no private wrapper record.
+- **DTO `FromJson`/`ToJson` visibility**: In TypeScript, `fromJson`/`toJson` are public static methods on each DTO class and re-exported from `index.ts`. In C#, they are `internal` — the `Dictionary<string, object?>` wire format is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
 
 ## Code Style (enforced across all files)
 - **Always braces** on `if`, `foreach`, `for` — no bracketless one-liners, ever
@@ -48,7 +49,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `public` for everything under `lib/public/` (builders, client, models, config, enums)
 - Private fields: underscore prefix (`_field`)
 - Builders return `this` for fluent chaining
-- DTOs are **sealed classes** with `{ get; set; }` properties and defaults — matches TS mutable class + field defaults pattern. Static `FromJson` factory colocated on each class.
+- DTOs are **sealed classes** with `{ get; set; }` properties and defaults — matches TS mutable class + field defaults pattern. `internal static FromJson` factory colocated on each class — `internal` because the `Dictionary<string, object?>` wire format is an implementation detail, not part of the public API.
 - Number extraction in DTOs delegates to `JsonParser.TryConvertInt(object? v)` (handles `int`/`long`/`double` → `int`)
 - No separate options classes — use named/optional parameters directly
 - Inline options pattern (TS) → named parameters (C#): `Find(string slug, QueryBuilder? query = null)`

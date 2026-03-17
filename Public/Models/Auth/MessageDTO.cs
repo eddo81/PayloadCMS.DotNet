@@ -15,7 +15,7 @@ public sealed class MessageDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static MessageDTO FromJson(Dictionary<string, object?> json)
+    internal static MessageDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new MessageDTO();
         var data = json ?? new Dictionary<string, object?>();

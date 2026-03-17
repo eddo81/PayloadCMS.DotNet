@@ -15,7 +15,7 @@ public sealed class TotalDocsDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS count endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static TotalDocsDTO FromJson(Dictionary<string, object?> json)
+    internal static TotalDocsDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new TotalDocsDTO();
         var data = json ?? new Dictionary<string, object?>();
@@ -33,7 +33,7 @@ public sealed class TotalDocsDTO
     /// </summary>
     /// <param name="dto">The instance to serialize.</param>
     /// <returns>A plain JSON object for transport.</returns>
-    public static Dictionary<string, object?> ToJson(TotalDocsDTO dto)
+    internal static Dictionary<string, object?> ToJson(TotalDocsDTO dto)
     {
         return new Dictionary<string, object?>
         {

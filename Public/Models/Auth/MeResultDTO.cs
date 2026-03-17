@@ -24,7 +24,7 @@ public sealed class MeResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>me</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static MeResultDTO FromJson(Dictionary<string, object?> json)
+    internal static MeResultDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new MeResultDTO();
         var data = json ?? new Dictionary<string, object?>();

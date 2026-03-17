@@ -22,7 +22,7 @@ public sealed class LoginResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>login</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static LoginResultDTO FromJson(Dictionary<string, object?> json)
+    internal static LoginResultDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new LoginResultDTO();
         var data = json ?? new Dictionary<string, object?>();

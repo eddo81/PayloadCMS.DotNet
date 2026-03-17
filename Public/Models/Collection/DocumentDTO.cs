@@ -22,7 +22,7 @@ public sealed class DocumentDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS endpoint.</param>
     /// <returns>A populated instance.</returns>
-    public static DocumentDTO FromJson(Dictionary<string, object?> json)
+    internal static DocumentDTO FromJson(Dictionary<string, object?> json)
     {
         var dto = new DocumentDTO();
         var data = json ?? new Dictionary<string, object?>();
@@ -52,7 +52,7 @@ public sealed class DocumentDTO
     /// </summary>
     /// <param name="dto">The instance to serialize.</param>
     /// <returns>A plain JSON object for transport.</returns>
-    public static Dictionary<string, object?> ToJson(DocumentDTO dto)
+    internal static Dictionary<string, object?> ToJson(DocumentDTO dto)
     {
         var result = new Dictionary<string, object?>(dto.Json)
         {
