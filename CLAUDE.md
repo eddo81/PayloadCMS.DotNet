@@ -70,7 +70,8 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `WhereBuilder` — public fluent expression builder
 - `JoinBuilder` — public fluent join builder (with `IsDisabled` getter)
 - `QueryBuilder` — public fluent facade over WhereBuilder + JoinBuilder
-- `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Cause`)
+- `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Cause`, `GetDetails()`) in `Public/Errors/`
+- `ErrorDetail` — sealed class with `Message` and `Field?`, returned by `GetDetails()` in `Public/Errors/`
 - `FileUpload` — public `IFileUpload` sealed record implementation
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`

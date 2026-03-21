@@ -873,6 +873,8 @@ public class PayloadError : Exception
     public readonly int StatusCode;
     public readonly HttpResponseMessage? Response;
     public readonly object? Cause;
+
+    public IReadOnlyList<ErrorDetail> GetDetails()
 }
 ```
 
@@ -882,6 +884,23 @@ public class PayloadError : Exception
 | `Response` | `HttpResponseMessage?` | The originating HTTP response. |
 | `Message` | `string` | Error message (from `Exception`). |
 | `Cause` | `object?` | The parsed JSON error body (if available). |
+
+### GetDetails()
+
+Extracts structured error entries from the response body. Navigates `Cause["errors"]` for validation-style errors (e.g. duplicate email, missing required field), or falls back to a top-level `Cause["message"]` for simpler error shapes (e.g. auth errors). Returns an empty list if no recognisable error structure is found.
+
+```csharp
+IReadOnlyList<ErrorDetail> GetDetails()
+```
+
+### ErrorDetail
+
+Represents a single error entry returned by `GetDetails()`.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Message` | `string` | The human-readable error message. |
+| `Field` | `string?` | The field name associated with the error, if any. |
 
 ```csharp
 using PayloadCMS.DotNet;
@@ -893,8 +912,11 @@ try
 catch (PayloadError ex)
 {
     Console.WriteLine($"Status: {ex.StatusCode}");
-    Console.WriteLine($"Message: {ex.Message}");
-    // ex.Cause contains the parsed JSON error body if the server returned one
+
+    foreach (ErrorDetail detail in ex.GetDetails())
+    {
+        Console.WriteLine($"{detail.Field ?? "general"}: {detail.Message}");
+    }
 }
 catch (Exception ex)
 {
