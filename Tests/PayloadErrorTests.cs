@@ -1,138 +1,216 @@
-using PayloadCMS.DotNet;
+using PayloadCMS.DotNet.Error;
+using PayloadCMS.DotNet.Models.Errors;
 
 namespace Payload.CMS.Tests;
 
 public class PayloadErrorTests
 {
-    // ── cause is not a navigable dictionary ─────────────────────
+    // ── body is null or non-JSON ──────────────────────────────────
 
     [Fact]
-    public void GetDetails_WhenCauseIsNull_ReturnsEmptyList()
+    public void Result_WhenBodyIsNull_ReturnsEmptyList()
     {
-        var error = new PayloadError(400, cause: null);
+        var error = new PayloadError(400, body: null);
 
-        Assert.Empty(error.GetDetails());
+        Assert.Empty(error.Result);
     }
 
     [Fact]
-    public void GetDetails_WhenCauseIsNotADictionary_ReturnsEmptyList()
+    public void Result_WhenBodyIsNotJson_ReturnsEmptyList()
     {
-        var error = new PayloadError(400, cause: "unexpected string");
+        var error = new PayloadError(400, body: "Internal Server Error");
 
-        Assert.Empty(error.GetDetails());
+        Assert.Empty(error.Result);
     }
 
-    // ── errors array ─────────────────────────────────────────────
+    [Fact]
+    public void Result_WhenBodyHasNoErrorsKey_ReturnsEmptyList()
+    {
+        var error = new PayloadError(400, body: """{"status":400}""");
+
+        Assert.Empty(error.Result);
+    }
 
     [Fact]
-    public void GetDetails_WithErrorsArray_ReturnsMessageAndField()
+    public void Result_WhenErrorsArrayIsEmpty_ReturnsEmptyList()
     {
-        var cause = new Dictionary<string, object?>
-        {
-            ["errors"] = new List<object?>
+        var error = new PayloadError(400, body: """{"errors":[]}""");
+
+        Assert.Empty(error.Result);
+    }
+
+    // ── base fields ───────────────────────────────────────────────
+
+    [Fact]
+    public void Result_PopulatesName()
+    {
+        var body = """{"errors":[{"name":"ValidationError","message":"The following field is invalid: title"}]}""";
+        var error = new PayloadError(400, body: body);
+
+        Assert.Single(error.Result);
+        Assert.Equal("ValidationError", error.Result[0].Name);
+    }
+
+    [Fact]
+    public void Result_PopulatesMessage()
+    {
+        var body = """{"errors":[{"name":"Forbidden","message":"You are not allowed to perform this action."}]}""";
+        var error = new PayloadError(403, body: body);
+
+        Assert.Equal("You are not allowed to perform this action.", error.Result[0].Message);
+    }
+
+    [Fact]
+    public void Result_PopulatesField_ForMongooseValidationItems()
+    {
+        var body = """{"errors":[{"message":"Value must be unique","field":"email"}]}""";
+        var error = new PayloadError(400, body: body);
+
+        Assert.Equal("email", error.Result[0].Field);
+    }
+
+    [Fact]
+    public void Result_NullName_WhenNameAbsent()
+    {
+        var body = """{"errors":[{"message":"Something went wrong"}]}""";
+        var error = new PayloadError(400, body: body);
+
+        Assert.Null(error.Result[0].Name);
+    }
+
+    [Fact]
+    public void Result_NullField_WhenFieldAbsent()
+    {
+        var body = """{"errors":[{"name":"Forbidden","message":"No access."}]}""";
+        var error = new PayloadError(403, body: body);
+
+        Assert.Null(error.Result[0].Field);
+    }
+
+    // ── Json escape hatch ─────────────────────────────────────────
+
+    [Fact]
+    public void Result_JsonContainsRawEntry()
+    {
+        var body = """
             {
-                new Dictionary<string, object?>
-                {
-                    ["message"] = "The following field has failed validation: email",
-                    ["field"] = "email",
-                },
-            },
-        };
+              "errors": [{
+                "name": "ValidationError",
+                "message": "The following field is invalid: title",
+                "data": {
+                  "collection": "posts",
+                  "errors": [{ "message": "Required", "path": "title" }]
+                }
+              }]
+            }
+            """;
+        var error = new PayloadError(400, body: body);
 
-        var error = new PayloadError(400, cause: cause);
-        var details = error.GetDetails();
-
-        Assert.Single(details);
-        Assert.Equal("The following field has failed validation: email", details[0].Message);
-        Assert.Equal("email", details[0].Field);
+        Assert.True(error.Result[0].Json.ContainsKey("data"));
     }
 
     [Fact]
-    public void GetDetails_WithErrorsArrayItemMissingField_ReturnsNullField()
+    public void Result_JsonAllowsConsumerToReadDataBlock()
     {
-        var cause = new Dictionary<string, object?>
-        {
-            ["errors"] = new List<object?>
+        var body = """
             {
-                new Dictionary<string, object?>
-                {
-                    ["message"] = "Something went wrong",
-                },
-            },
-        };
+              "errors": [{
+                "name": "ValidationError",
+                "message": "The following field is invalid: title",
+                "data": {
+                  "collection": "posts",
+                  "errors": [{ "message": "Required", "path": "title" }]
+                }
+              }]
+            }
+            """;
+        var error = new PayloadError(400, body: body);
+        var data = error.Result[0].Json["data"] as Dictionary<string, object?>;
 
-        var error = new PayloadError(400, cause: cause);
-        var details = error.GetDetails();
+        Assert.NotNull(data);
+        Assert.Equal("posts", data["collection"]);
+    }
 
-        Assert.Single(details);
-        Assert.Equal("Something went wrong", details[0].Message);
-        Assert.Null(details[0].Field);
+    // ── multiple errors ───────────────────────────────────────────
+
+    [Fact]
+    public void Result_MultipleItems_AllPopulated()
+    {
+        var body = """
+            {
+              "errors": [
+                { "name": "Forbidden", "message": "No access." },
+                { "message": "Something went wrong" }
+              ]
+            }
+            """;
+        var error = new PayloadError(400, body: body);
+
+        Assert.Equal(2, error.Result.Count);
+        Assert.Equal("Forbidden", error.Result[0].Name);
+        Assert.Null(error.Result[1].Name);
     }
 
     [Fact]
-    public void GetDetails_WithErrorsArrayContainingInvalidItems_SkipsInvalidItems()
+    public void Result_SkipsNullItemsInErrorsArray()
     {
-        var cause = new Dictionary<string, object?>
-        {
-            ["errors"] = new List<object?>
+        var body = """
             {
+              "errors": [
                 null,
-                new Dictionary<string, object?> { ["message"] = "Valid error", ["field"] = "email" },
-                new Dictionary<string, object?> { ["field"] = "password" },
-            },
-        };
+                { "name": "Forbidden", "message": "No access." }
+              ]
+            }
+            """;
+        var error = new PayloadError(400, body: body);
 
-        var error = new PayloadError(400, cause: cause);
-        var details = error.GetDetails();
+        Assert.Single(error.Result);
+        Assert.Equal("Forbidden", error.Result[0].Name);
+    }
 
-        Assert.Single(details);
-        Assert.Equal("Valid error", details[0].Message);
-        Assert.Equal("email", details[0].Field);
+    // ── Body and Stack passthrough ────────────────────────────────
+
+    [Fact]
+    public void Body_IsPreservedVerbatim()
+    {
+        var body = """{"errors":[{"name":"Forbidden","message":"No access."}]}""";
+        var error = new PayloadError(403, body: body);
+
+        Assert.Equal(body, error.Body);
     }
 
     [Fact]
-    public void GetDetails_WithEmptyErrorsArray_ReturnsEmptyList()
+    public void Stack_IsNullWhenAbsent()
     {
-        var cause = new Dictionary<string, object?>
-        {
-            ["errors"] = new List<object?>(),
-        };
+        var error = new PayloadError(400, body: """{"errors":[]}""");
 
-        var error = new PayloadError(400, cause: cause);
-
-        Assert.Empty(error.GetDetails());
+        Assert.Null(error.Stack);
     }
 
-    // ── top-level message fallback ────────────────────────────────
-
     [Fact]
-    public void GetDetails_WithTopLevelMessage_ReturnsSingleItemWithNoField()
+    public void Stack_IsPopulatedFromBody()
     {
-        var cause = new Dictionary<string, object?>
-        {
-            ["message"] = "You are not allowed to perform this action.",
-        };
+        var body = """{"errors":[],"stack":"Error\n    at Object.<anonymous>"}""";
+        var error = new PayloadError(400, body: body);
 
-        var error = new PayloadError(401, cause: cause);
-        var details = error.GetDetails();
-
-        Assert.Single(details);
-        Assert.Equal("You are not allowed to perform this action.", details[0].Message);
-        Assert.Null(details[0].Field);
+        Assert.Equal("Error\n    at Object.<anonymous>", error.Stack);
     }
 
-    // ── unrecognised shape ────────────────────────────────────────
+    // ── StatusCode and Message ────────────────────────────────────
 
     [Fact]
-    public void GetDetails_WithNoErrorsOrMessage_ReturnsEmptyList()
+    public void StatusCode_IsSet()
     {
-        var cause = new Dictionary<string, object?>
-        {
-            ["status"] = 400,
-        };
+        var error = new PayloadError(422);
 
-        var error = new PayloadError(400, cause: cause);
+        Assert.Equal(422, error.StatusCode);
+    }
 
-        Assert.Empty(error.GetDetails());
+    [Fact]
+    public void Message_DefaultsToStatusCodeMessage()
+    {
+        var error = new PayloadError(404);
+
+        Assert.Equal("[PayloadError] Request failed with status: 404", error.Message);
     }
 }

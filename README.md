@@ -861,6 +861,19 @@ Returned by paginated operations (`Find`, `Update`, `Delete`, `FindVersions`).
 | `ResetPasswordResultDTO` | `ResetPassword()` | `User`, `Token` |
 | `MessageDTO` | `ForgotPassword()`, `VerifyEmail()`, `Logout()`, `Unlock()` | `Message` |
 
+### ErrorResultDTO
+
+Found in `PayloadCMS.DotNet.Models.Errors`. Represents one entry in the `errors[]` array from a failed Payload response. Payload's error shape is intentionally dynamic — only the base fields below are guaranteed across all error types. The `Json` property gives access to the full raw entry, including the `data` block present on `ValidationError` and `APIError` responses.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Name` | `string?` | The error class name (e.g. `"ValidationError"`, `"Forbidden"`). Sourced from `errors[n].name`. |
+| `Message` | `string?` | The human-readable error message. Sourced from `errors[n].message`. |
+| `Field` | `string?` | The field path associated with the error. Set on Mongoose validation items only. |
+| `Json` | `Dictionary<string, object?>` | The full raw JSON for this `errors[n]` entry. |
+
+See [Error Handling](#error-handling) for usage examples.
+
 ---
 
 ## Error Handling
@@ -872,9 +885,9 @@ public class PayloadError : Exception
 {
     public readonly int StatusCode;
     public readonly HttpResponseMessage? Response;
-    public readonly object? Cause;
-
-    public IReadOnlyList<ErrorDetail> GetDetails()
+    public readonly string? Body;
+    public readonly string? Stack;
+    public readonly IReadOnlyList<ErrorResultDTO> Result;
 }
 ```
 
@@ -882,28 +895,18 @@ public class PayloadError : Exception
 |----------|------|-------------|
 | `StatusCode` | `int` | HTTP status code. |
 | `Response` | `HttpResponseMessage?` | The originating HTTP response. |
-| `Message` | `string` | Error message (from `Exception`). |
-| `Cause` | `object?` | The parsed JSON error body (if available). |
+| `Message` | `string` | Human-readable status code message (from `Exception`). |
+| `Body` | `string?` | The raw unparsed JSON response body, if available. |
+| `Stack` | `string?` | Server-side stack trace. Payload includes this in development mode only. |
+| `Result` | `IReadOnlyList<ErrorResultDTO>` | Parsed entries from `errors[]` in the response body. |
 
-### GetDetails()
+Each entry in `Result` is an [`ErrorResultDTO`](#errorresultdto).
 
-Extracts structured error entries from the response body. Navigates `Cause["errors"]` for validation-style errors (e.g. duplicate email, missing required field), or falls back to a top-level `Cause["message"]` for simpler error shapes (e.g. auth errors). Returns an empty list if no recognisable error structure is found.
-
-```csharp
-IReadOnlyList<ErrorDetail> GetDetails()
-```
-
-### ErrorDetail
-
-Represents a single error entry returned by `GetDetails()`.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `Message` | `string` | The human-readable error message. |
-| `Field` | `string?` | The field name associated with the error, if any. |
+### Basic usage
 
 ```csharp
-using PayloadCMS.DotNet;
+using PayloadCMS.DotNet.Error;
+using PayloadCMS.DotNet.Models.Errors;
 
 try
 {
@@ -913,14 +916,100 @@ catch (PayloadError ex)
 {
     Console.WriteLine($"Status: {ex.StatusCode}");
 
-    foreach (ErrorDetail detail in ex.GetDetails())
+    foreach (ErrorResultDTO entry in ex.Result)
     {
-        Console.WriteLine($"{detail.Field ?? "general"}: {detail.Message}");
+        Console.WriteLine($"{entry.Name ?? "error"}: {entry.Message}");
     }
 }
 catch (Exception ex)
 {
     // Network failure, timeout, or parsing error
+}
+```
+
+### Accessing richer error data via Json
+
+Payload's `ValidationError` responses include a `data` block with field-level detail. The library does not model this automatically — define your own types and map from the `Json` escape hatch:
+
+```csharp
+public class ValidationFieldError
+{
+    public string? Message { get; set; }
+    public string? Path { get; set; }
+}
+
+public class ValidationError
+{
+    public string? Collection { get; set; }
+    public string? Global { get; set; }
+    public string? Id { get; set; }
+    public string? Message { get; set; }
+    public List<ValidationFieldError> FieldErrors { get; set; } = new();
+
+    public static ValidationError? FromJson(Dictionary<string, object?> json)
+    {
+        if (!json.ContainsKey("name") || json["name"] as string != "ValidationError")
+        {
+            return null;
+        }
+
+        if (!json.ContainsKey("data") || json["data"] is not Dictionary<string, object?> data)
+        {
+            return null;
+        }
+
+        var validationError = new ValidationError
+        {
+            Collection = data.ContainsKey("collection") ? data["collection"] as string : null,
+            Global = data.ContainsKey("global") ? data["global"] as string : null,
+            Id = data.ContainsKey("id") ? data["id"]?.ToString() : null,
+            Message = json.ContainsKey("message") ? json["message"] as string : null,
+        };
+
+        if (data.ContainsKey("errors") && data["errors"] is List<object?> fieldErrors)
+        {
+            foreach (var item in fieldErrors)
+            {
+                if (item is not Dictionary<string, object?> fieldJson)
+                {
+                    continue;
+                }
+
+                validationError.FieldErrors.Add(new ValidationFieldError
+                {
+                    Message = fieldJson.ContainsKey("message") ? fieldJson["message"] as string : null,
+                    Path = fieldJson.ContainsKey("path") ? fieldJson["path"] as string : null,
+                });
+            }
+        }
+
+        return validationError;
+    }
+}
+```
+
+Then use it when catching a `PayloadError`:
+
+```csharp
+catch (PayloadError error)
+{
+    foreach (ErrorResultDTO result in error.Result)
+    {
+        ValidationError? validationError = ValidationError.FromJson(result.Json);
+
+        if (validationError == null)
+        {
+            Console.WriteLine($"{result.Name ?? "error"}: {result.Message}");
+            continue;
+        }
+
+        Console.WriteLine($"Validation failed on '{validationError.Collection ?? validationError.Global}':");
+
+        foreach (ValidationFieldError fieldError in validationError.FieldErrors)
+        {
+            Console.WriteLine($"  {fieldError.Path}: {fieldError.Message}");
+        }
+    }
 }
 ```
 

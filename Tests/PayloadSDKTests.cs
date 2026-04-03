@@ -3,6 +3,7 @@ using System.Text;
 using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
 using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Error;
 using PayloadCMS.DotNet.Models;
 
 namespace Payload.CMS.Tests;
@@ -538,7 +539,7 @@ public class PayloadSDKTests
         var exception = await Assert.ThrowsAsync<PayloadError>(() => sdk.Find("posts"));
 
         Assert.Equal(404, exception.StatusCode);
-        Assert.NotNull(exception.Cause);
+        Assert.NotEmpty(exception.Result);
     }
 
     [Fact]

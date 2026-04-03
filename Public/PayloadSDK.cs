@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PayloadCMS.DotNet.Config;
+using PayloadCMS.DotNet.Error;
 using PayloadCMS.DotNet.Internal.Contracts;
 using PayloadCMS.DotNet.Internal.Upload;
 using PayloadCMS.DotNet.Internal.Utils;
@@ -206,7 +207,7 @@ public class PayloadSDK
                 throw new PayloadError(
                     statusCode: (int)response.StatusCode,
                     response: response,
-                    cause: json
+                    body: text.Length > 0 ? text : null
                 );
             }
 

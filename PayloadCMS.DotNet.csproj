@@ -8,7 +8,7 @@
     <!-- Package identity — update when the library is renamed -->
     <AssemblyName>PayloadCMS.DotNet</AssemblyName>
     <PackageId>PayloadCMS.DotNet</PackageId>
-    <Version>0.1.0-preview.2</Version>
+    <Version>0.1.0-preview.6</Version>
     <Authors>eddo81</Authors>
     <Copyright>Copyright © 2026 eddo81</Copyright>
     <Description>A typed .NET REST client for the Payload CMS API.</Description>
@@ -47,6 +47,10 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>Payload.CMS.Tests</_Parameter1>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="nupkg\" />
   </ItemGroup>
 
 </Project>

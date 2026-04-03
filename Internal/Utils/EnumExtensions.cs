@@ -1,4 +1,4 @@
-﻿using PayloadCMS.DotNet.Internal.Attributes;
+using PayloadCMS.DotNet.Internal.Attributes;
 using System.Reflection;
 
 namespace PayloadCMS.DotNet.Internal.Utils;
@@ -21,4 +21,5 @@ internal static class EnumExtensions
 
         return value.ToString();
     }
+
 }
