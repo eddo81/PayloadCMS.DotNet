@@ -36,6 +36,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - **`RequestConfig`**: Public `sealed record` in `PayloadCMS.DotNet.Config`, used as the options object for `PayloadSDK.Request()`. Mirrors the TS inline options object `{ method, path, body?, query? }`. Private `Request` takes `(url, method?, body?)` directly — no private wrapper record.
 - **DTO `FromJson`/`ToJson` visibility**: In TypeScript, `fromJson`/`toJson` are public static methods on each DTO class and re-exported from `index.ts`. In C#, they are `internal` — the `Dictionary<string, object?>` wire format is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
 - **`PayloadError` human-readable message**: TypeScript (`Error.message`) and C# (`Exception.Message`) both surface a human-readable status-code message via inheritance. Dart's `Exception` is an interface with no `message` field — the Dart port must instead override `toString()` to return the equivalent string. Consumer-facing behaviour is identical across all three ports; only the wiring differs.
+- **`PayloadError.ServerStack`**: C# uses `ServerStack` (not `Stack`) because `Exception` has no native `Stack` property to conflict with. TypeScript uses `serverStack` (not `stack`) because `Error.stack` is already occupied by the JS call stack. Both ports use the same name — this is a coordinated cross-language choice, not a divergence.
 
 ## Code Style (enforced across all files)
 - **Always braces** on `if`, `foreach`, `for` — no bracketless one-liners, ever
@@ -68,16 +69,16 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `JsonParser` — JSON serialization, deserialization, CLR conversion, and `TryConvertInt`
 - `DocumentDTO`, `PaginatedDocsDTO`, `TotalDocsDTO` — collection DTOs (sealed classes)
 - `LoginResultDTO`, `MeResultDTO`, `RefreshResultDTO`, `ResetPasswordResultDTO`, `MessageDTO` — auth DTOs (sealed classes)
-- `WhereBuilder` — public fluent expression builder
-- `JoinBuilder` — public fluent join builder (with `IsDisabled` getter)
-- `QueryBuilder` — public fluent facade over WhereBuilder + JoinBuilder
-- `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `Stack`, `Result`) in `Public/Errors/`
+- `WhereBuilder` — public fluent expression builder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `JoinBuilder` — public fluent join builder (with `IsDisabled` getter) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `QueryBuilder` — public fluent facade over WhereBuilder + JoinBuilder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `ServerStack`, `Result`) in `Public/`, namespace `PayloadCMS.DotNet`
 - `ErrorResultDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
 - `FileUpload` — public `IFileUpload` sealed record implementation
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 32 tests across `QueryStringEncoder`, `QueryBuilder`, `JoinBuilder`, `ApiKeyAuth`
+- xUnit v3 test suite — 82 tests across `QueryStringEncoder`, `QueryBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -90,7 +91,6 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - JSON parsing via `JsonParser.Parse` / `JsonParser.ConvertElement` (centralized in `Internal/Utils/JsonParser.cs`)
 - `doc`/`result` unwrapping pattern: pre-initialize `Dictionary<string, object?> doc = new();`, then `if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value) { doc = value; }`
 - `IAuthCredential` and `IFileUpload` are `public` (required for public API surface)
-- `PayloadError.Cause` is `object?` (matches TS's `unknown`), `InnerException` set via `cause as Exception`
 - `CancellationToken cancellationToken = default` on all public async methods, propagated to `SendAsync` and `ReadAsStringAsync`
 
 ## QueryStringEncoder Rules (critical for parity)

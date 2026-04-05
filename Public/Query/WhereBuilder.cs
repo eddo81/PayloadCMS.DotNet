@@ -2,7 +2,7 @@
 using PayloadCMS.DotNet.Internal.Contracts;
 using PayloadCMS.DotNet.Enums;
 
-namespace PayloadCMS.DotNet;
+namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Fluent builder for nested <c>where</c>/<c>and</c>/<c>or</c> clauses.

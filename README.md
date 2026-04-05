@@ -675,8 +675,8 @@ Fluent builder for query parameters. All methods return `this` for chaining.
 
 #### Example
 ```csharp
-using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
 
 var query = new QueryBuilder()
     .Where("status", Operator.Equals, "published")
@@ -886,7 +886,7 @@ public class PayloadError : Exception
     public readonly int StatusCode;
     public readonly HttpResponseMessage? Response;
     public readonly string? Body;
-    public readonly string? Stack;
+    public readonly string? ServerStack;
     public readonly IReadOnlyList<ErrorResultDTO> Result;
 }
 ```
@@ -897,7 +897,7 @@ public class PayloadError : Exception
 | `Response` | `HttpResponseMessage?` | The originating HTTP response. |
 | `Message` | `string` | Human-readable status code message (from `Exception`). |
 | `Body` | `string?` | The raw unparsed JSON response body, if available. |
-| `Stack` | `string?` | Server-side stack trace. Payload includes this in development mode only. |
+| `ServerStack` | `string?` | Server-side stack trace. Payload includes this in development mode only. |
 | `Result` | `IReadOnlyList<ErrorResultDTO>` | Parsed entries from `errors[]` in the response body. |
 
 Each entry in `Result` is an [`ErrorResultDTO`](#errorresultdto).
@@ -905,7 +905,7 @@ Each entry in `Result` is an [`ErrorResultDTO`](#errorresultdto).
 ### Basic usage
 
 ```csharp
-using PayloadCMS.DotNet.Error;
+using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Models.Errors;
 
 try

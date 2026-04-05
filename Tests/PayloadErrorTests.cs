@@ -1,4 +1,4 @@
-using PayloadCMS.DotNet.Error;
+using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Models.Errors;
 
 namespace Payload.CMS.Tests;
@@ -168,7 +168,7 @@ public class PayloadErrorTests
         Assert.Equal("Forbidden", error.Result[0].Name);
     }
 
-    // ── Body and Stack passthrough ────────────────────────────────
+    // ── Body and ServerStack passthrough ────────────────────────────────
 
     [Fact]
     public void Body_IsPreservedVerbatim()
@@ -180,20 +180,20 @@ public class PayloadErrorTests
     }
 
     [Fact]
-    public void Stack_IsNullWhenAbsent()
+    public void ServerStack_IsNullWhenAbsent()
     {
         var error = new PayloadError(400, body: """{"errors":[]}""");
 
-        Assert.Null(error.Stack);
+        Assert.Null(error.ServerStack);
     }
 
     [Fact]
-    public void Stack_IsPopulatedFromBody()
+    public void ServerStack_IsPopulatedFromBody()
     {
         var body = """{"errors":[],"stack":"Error\n    at Object.<anonymous>"}""";
         var error = new PayloadError(400, body: body);
 
-        Assert.Equal("Error\n    at Object.<anonymous>", error.Stack);
+        Assert.Equal("Error\n    at Object.<anonymous>", error.ServerStack);
     }
 
     // ── StatusCode and Message ────────────────────────────────────

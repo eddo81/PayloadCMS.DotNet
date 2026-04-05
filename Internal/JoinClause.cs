@@ -4,7 +4,7 @@ namespace PayloadCMS.DotNet.Internal;
 
 /// <summary>
 /// Accumulates join-scoped operations for a single <c>Join Field</c>.
-/// <para>Used internally by <see cref="PayloadCMS.DotNet.JoinBuilder"/> to collect <c>limit</c>,
+/// <para>Used internally by <see cref="PayloadCMS.DotNet.Query.JoinBuilder"/> to collect <c>limit</c>,
 /// <c>sort</c>, <c>where</c>, and <c>count</c> per join target.</para>
 /// </summary>
 internal class JoinClause : IClause

@@ -1,6 +1,6 @@
 using System.Text.Json;
 using PayloadCMS.DotNet.Config;
-using PayloadCMS.DotNet.Error;
+using PayloadCMS.DotNet.Query;
 using PayloadCMS.DotNet.Internal.Contracts;
 using PayloadCMS.DotNet.Internal.Upload;
 using PayloadCMS.DotNet.Internal.Utils;

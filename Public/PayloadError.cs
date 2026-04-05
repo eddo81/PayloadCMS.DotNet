@@ -1,7 +1,7 @@
 using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Models.Errors;
 
-namespace PayloadCMS.DotNet.Error;
+namespace PayloadCMS.DotNet;
 
 /// <summary>
 /// A structured error thrown on failed Payload CMS requests.
@@ -27,7 +27,7 @@ public class PayloadError : Exception
     /// The server-side stack trace, if present.
     /// Payload includes this only in development mode via <c>ErrorResult.stack</c>.
     /// </summary>
-    public readonly string? Stack;
+    public readonly string? ServerStack;
 
     /// <summary>
     /// The parsed error entries from <c>errors[]</c> in the response body.
@@ -64,7 +64,7 @@ public class PayloadError : Exception
 
         if (json != null && json.ContainsKey("stack") && json["stack"] is string stackValue)
         {
-            Stack = stackValue;
+            ServerStack = stackValue;
         }
 
         var result = new List<ErrorResultDTO>();

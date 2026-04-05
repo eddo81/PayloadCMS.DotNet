@@ -1,5 +1,5 @@
-﻿using PayloadCMS.DotNet;
-using PayloadCMS.DotNet.Enums;
+﻿using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
 
 namespace Payload.CMS.Tests;
 

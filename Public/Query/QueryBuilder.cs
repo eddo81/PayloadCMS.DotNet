@@ -1,6 +1,6 @@
 ﻿using PayloadCMS.DotNet.Enums;
 
-namespace PayloadCMS.DotNet;
+namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Fluent builder for Payload CMS REST API query parameters.

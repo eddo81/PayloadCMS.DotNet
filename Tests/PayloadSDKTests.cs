@@ -3,7 +3,7 @@ using System.Text;
 using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
 using PayloadCMS.DotNet.Enums;
-using PayloadCMS.DotNet.Error;
+using PayloadCMS.DotNet.Query;
 using PayloadCMS.DotNet.Models;
 
 namespace Payload.CMS.Tests;
