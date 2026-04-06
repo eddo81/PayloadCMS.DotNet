@@ -8,18 +8,6 @@ public class QueryBuilderTests
     private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false);
 
     [Fact]
-    public void SelectShouldSerializeAsCommaSeparatedList()
-    {
-        var params_ = new QueryBuilder()
-            .Select(new[] { "title", "author" })
-            .Build();
-
-        var actual = _encoder.Stringify(params_);
-
-        Assert.Equal("select=title,author", actual);
-    }
-
-    [Fact]
     public void SortAndSortByDescendingShouldSerializeAsCommaSeparatedList()
     {
         var params_ = new QueryBuilder()

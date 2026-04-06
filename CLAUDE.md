@@ -63,22 +63,23 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `ApiKeyAuth`, `JwtAuth` — auth credentials
 - `Operator` — enum with StringValue (HttpMethod enum dropped — uses `System.Net.Http.HttpMethod`)
 - `StringValueAttribute`, `EnumExtensions` — enum support
-- `WhereClause`, `AndClause`, `OrClause`, `JoinClause` — internal clause strategy
+- `WhereClause`, `AndClause`, `OrClause`, `JoinClause`, `SelectClause` — internal clause strategy
 - `FormDataBuilder` — multipart form data builder
 - `QueryStringEncoder` — full recursive implementation complete
 - `JsonParser` — JSON serialization, deserialization, CLR conversion, and `TryConvertInt`
 - `DocumentDTO`, `PaginatedDocsDTO`, `TotalDocsDTO` — collection DTOs (sealed classes)
 - `LoginResultDTO`, `MeResultDTO`, `RefreshResultDTO`, `ResetPasswordResultDTO`, `MessageDTO` — auth DTOs (sealed classes)
 - `WhereBuilder` — public fluent expression builder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `SelectBuilder` — public fluent field-selection builder (delegates to `SelectClause` list, deep-merges results) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `JoinBuilder` — public fluent join builder (with `IsDisabled` getter) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
-- `QueryBuilder` — public fluent facade over WhereBuilder + JoinBuilder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `QueryBuilder` — public fluent facade over `WhereBuilder`, `SelectBuilder`, and `JoinBuilder` in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `ServerStack`, `Result`) in `Public/`, namespace `PayloadCMS.DotNet`
 - `ErrorResultDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
 - `FileUpload` — public `IFileUpload` sealed record implementation
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 82 tests across `QueryStringEncoder`, `QueryBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 87 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -96,7 +97,8 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 ## QueryStringEncoder Rules (critical for parity)
 - Nested objects: bracket notation `where[title][equals]=foo`
 - Arrays: indexed notation `where[or][0][title]=foo`
-- `select`, `sort`: comma-separated (NOT indexed) `select=a,b`
+- `select`: bracket-object notation `select[title]=true&select[author]=true` (NOT comma-separated)
+- `sort`: comma-separated (NOT indexed) `sort=a,-b`
 - `null`/`undefined` values: skipped
 - `bool`: serialized as `"true"` / `"false"` strings
 - `DateTime`: ISO 8601 string

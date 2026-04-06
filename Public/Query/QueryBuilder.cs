@@ -1,10 +1,11 @@
-﻿using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Enums;
 
 namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Fluent builder for Payload CMS REST API query parameters.
-/// <para>Delegates filtering to <see cref="WhereBuilder"/> and
+/// <para>Delegates filtering to <see cref="WhereBuilder"/>,
+/// field selection to <see cref="SelectBuilder"/>, and
 /// join configuration to <see cref="JoinBuilder"/>.</para>
 /// </summary>
 public class QueryBuilder
@@ -15,9 +16,9 @@ public class QueryBuilder
     private int? _depth;
     private string? _locale;
     private string? _fallbackLocale;
-    private string? _select;
     private string? _populate;
     private readonly WhereBuilder _whereBuilder = new WhereBuilder();
+    private readonly SelectBuilder _selectBuilder = new SelectBuilder();
     private readonly JoinBuilder _joinBuilder = new JoinBuilder();
 
     /// <summary>
@@ -114,23 +115,29 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Specifies which fields to include in the result.
-    /// <para>Supports dot notation for nested selections
-    /// (e.g. <c>title</c>, <c>author.name</c>).</para>
-    /// <para>Can be called multiple times to accumulate fields.</para>
+    /// Marks fields for inclusion in the response.
+    /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
+    /// <para>Delegates to the internal <see cref="SelectBuilder"/>.</para>
     /// </summary>
     /// <param name="fields">Field names to include.</param>
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder Select(string[] fields)
     {
-        if (_select == null)
-        {
-            _select = string.Join(',', fields);
-        }
-        else
-        {
-            _select += $",{string.Join(',', fields)}";
-        }
+        _selectBuilder.Select(fields);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Marks fields for exclusion from the response.
+    /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
+    /// <para>Delegates to the internal <see cref="SelectBuilder"/>.</para>
+    /// </summary>
+    /// <param name="fields">Field names to exclude.</param>
+    /// <returns>The current builder for chaining.</returns>
+    public QueryBuilder Exclude(string[] fields)
+    {
+        _selectBuilder.Exclude(fields);
 
         return this;
     }
@@ -211,6 +218,7 @@ public class QueryBuilder
     public Dictionary<string, object?> Build()
     {
         var where = _whereBuilder.Build();
+        var select = _selectBuilder.Build();
         var result = new Dictionary<string, object?>();
 
         if (_limit != null)
@@ -243,9 +251,9 @@ public class QueryBuilder
             result["fallback-locale"] = _fallbackLocale;
         }
 
-        if (_select != null)
+        if (select != null)
         {
-            result["select"] = _select;
+            result["select"] = select;
         }
 
         if (_populate != null)

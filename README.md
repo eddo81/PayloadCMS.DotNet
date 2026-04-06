@@ -698,12 +698,45 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `Depth` | `int value` | Population depth for relationships. |
 | `Locale` | `string value` | Locale for localized fields. |
 | `FallbackLocale` | `string value` | Fallback locale. |
-| `Select` | `string[] fields` | Fields to include in response. |
+| `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
+| `Exclude` | `string[] fields` | Mark fields for exclusion. Supports dot notation. |
 | `Populate` | `string[] fields` | Relationships to populate. |
 | `Where` | `string field, Operator op, object? value` | Add a where condition. |
 | `And` | `Action<WhereBuilder> callback` | Nested AND group. |
 | `Or` | `Action<WhereBuilder> callback` | Nested OR group. |
 | `Join` | `Action<JoinBuilder> callback` | Configure joins. |
+
+### SelectBuilder
+
+Composes field inclusion/exclusion entries into a nested structure that serializes to Payload's bracket notation (e.g. `select[group][number]=true`). Use dot notation to target nested fields — `"group.number"` is expanded into the correct nested structure automatically.
+
+`SelectBuilder` is used internally by `QueryBuilder`. The `Select()` and `Exclude()` methods on `QueryBuilder` delegate directly to it.
+
+#### Example
+```csharp
+// Include specific fields (lightweight listing)
+var query = new QueryBuilder()
+    .Select(new[] { "title", "createdAt" });
+
+// Include a nested field using dot notation
+var query = new QueryBuilder()
+    .Select(new[] { "title", "group.number" });
+// Serializes to: ?select[title]=true&select[group][number]=true
+
+// Exclude one expensive field, keep everything else
+var query = new QueryBuilder()
+    .Exclude(new[] { "content" });
+
+// Mix inclusion and exclusion
+var query = new QueryBuilder()
+    .Select(new[] { "title", "group.number" })
+    .Exclude(new[] { "content" });
+```
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
+| `Exclude` | `string[] fields` | Mark fields for exclusion. Supports dot notation. |
 
 ### WhereBuilder
 
