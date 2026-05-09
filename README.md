@@ -248,7 +248,7 @@ DocumentDTO document = await client.UpdateById("posts", "123", new Dictionary<st
 Bulk-updates all documents matching a query. Supports file uploads.
 
 ```csharp
-Task<PaginatedDocsDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
+Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
 ```
 
 | Parameter | Type | Description |
@@ -264,7 +264,7 @@ Task<PaginatedDocsDTO> Update(string slug, Dictionary<string, object?> data, Que
 var query = new QueryBuilder()
     .Where("status", Operator.Equals, "draft");
 
-PaginatedDocsDTO result = await client.Update("posts", new Dictionary<string, object?>
+BulkOperationDTO result = await client.Update("posts", new Dictionary<string, object?>
 {
     ["status"] = "published",
 }, query);
@@ -294,7 +294,7 @@ DocumentDTO document = await client.DeleteById("posts", "123");
 Bulk-deletes all documents matching a query.
 
 ```csharp
-Task<PaginatedDocsDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
+Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
 ```
 
 | Parameter | Type | Description |
@@ -308,7 +308,7 @@ Task<PaginatedDocsDTO> Delete(string slug, QueryBuilder query, CancellationToken
 var query = new QueryBuilder()
     .Where("status", Operator.Equals, "archived");
 
-PaginatedDocsDTO result = await client.Delete("posts", query);
+BulkOperationDTO result = await client.Delete("posts", query);
 ```
 
 ---
@@ -870,7 +870,7 @@ Returned by single-document operations (`Create`, `FindById`, `UpdateById`, `Del
 
 ### PaginatedDocsDTO
 
-Returned by paginated operations (`Find`, `Update`, `Delete`, `FindVersions`).
+Returned by paginated read operations (`Find`, `FindVersions`, `FindGlobalVersions`).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -883,6 +883,15 @@ Returned by paginated operations (`Find`, `Update`, `Delete`, `FindVersions`).
 | `HasPrevPage` | `bool` | Whether a previous page exists. |
 | `NextPage` | `int?` | Next page number. |
 | `PrevPage` | `int?` | Previous page number. |
+
+### BulkOperationDTO
+
+Returned by bulk write operations (`Update`, `Delete`). Maps to Payload's `BulkOperationResult` response shape.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Docs` | `List<DocumentDTO>` | Documents successfully affected by the operation. |
+| `Errors` | `List<BulkOperationError>` | Per-document errors, if any. Each has `Id` and `Message`. |
 
 ### Auth DTOs
 

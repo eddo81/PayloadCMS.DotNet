@@ -309,13 +309,13 @@ public class PayloadSDK
     /// <param name="query"><see cref="QueryBuilder"/> with <c>where</c> clause to select documents.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The bulk result containing deleted documents.</returns>
-    public async Task<PaginatedDocsDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
+    public async Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Delete;
 
         var json = await Request(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = PaginatedDocsDTO.FromJson(json);
+        var dto = BulkOperationDTO.FromJson(json);
 
         return dto;
     }
@@ -354,14 +354,14 @@ public class PayloadSDK
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The bulk result containing updated documents.</returns>
-    public async Task<PaginatedDocsDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
+    public async Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Patch;
         HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
         var json = await Request(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = PaginatedDocsDTO.FromJson(json);
+        var dto = BulkOperationDTO.FromJson(json);
 
         return dto;
     }

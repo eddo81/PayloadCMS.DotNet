@@ -67,7 +67,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `FormDataBuilder` — multipart form data builder
 - `QueryStringEncoder` — full recursive implementation complete
 - `JsonParser` — JSON serialization, deserialization, CLR conversion, and `TryConvertInt`
-- `DocumentDTO`, `PaginatedDocsDTO`, `TotalDocsDTO` — collection DTOs (sealed classes)
+- `DocumentDTO`, `PaginatedDocsDTO`, `TotalDocsDTO`, `BulkOperationDTO` — collection DTOs (sealed classes)
 - `LoginResultDTO`, `MeResultDTO`, `RefreshResultDTO`, `ResetPasswordResultDTO`, `MessageDTO` — auth DTOs (sealed classes)
 - `WhereBuilder` — public fluent expression builder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `SelectBuilder` — public fluent field-selection builder (delegates to `SelectClause` list, deep-merges results) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`

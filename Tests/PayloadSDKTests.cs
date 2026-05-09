@@ -152,14 +152,12 @@ public class PayloadSDKTests
     // ── Update (bulk) ───────────────────────────────────────────
 
     [Fact]
-    public async Task Update_PatchesAndReturnsPaginatedDocsDTO()
+    public async Task Update_PatchesAndReturnsBulkOperationDTO()
     {
         const string json = """
             {
               "docs": [{ "id": "abc123", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }],
-              "totalDocs": 1, "limit": 10, "totalPages": 1, "page": 1,
-              "pagingCounter": 1, "hasPrevPage": false, "hasNextPage": false,
-              "prevPage": null, "nextPage": null
+              "errors": []
             }
             """;
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
@@ -169,20 +167,19 @@ public class PayloadSDKTests
         var result = await sdk.Update("posts", data, query);
 
         Assert.Single(result.Docs);
+        Assert.Empty(result.Errors);
         Assert.Equal(HttpMethod.Patch, handler.LastRequest!.Method);
     }
 
     // ── Delete (bulk) ───────────────────────────────────────────
 
     [Fact]
-    public async Task Delete_DeletesAndReturnsPaginatedDocsDTO()
+    public async Task Delete_DeletesAndReturnsBulkOperationDTO()
     {
         const string json = """
             {
               "docs": [{ "id": "abc123", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }],
-              "totalDocs": 1, "limit": 10, "totalPages": 1, "page": 1,
-              "pagingCounter": 1, "hasPrevPage": false, "hasNextPage": false,
-              "prevPage": null, "nextPage": null
+              "errors": []
             }
             """;
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
@@ -191,6 +188,7 @@ public class PayloadSDKTests
         var result = await sdk.Delete("posts", query);
 
         Assert.Single(result.Docs);
+        Assert.Empty(result.Errors);
         Assert.Equal(HttpMethod.Delete, handler.LastRequest!.Method);
     }
 
