@@ -891,7 +891,7 @@ Returned by bulk write operations (`Update`, `Delete`). Maps to Payload's `BulkO
 | Property | Type | Description |
 |----------|------|-------------|
 | `Docs` | `List<DocumentDTO>` | Documents successfully affected by the operation. |
-| `Errors` | `List<BulkOperationError>` | Per-document errors, if any. Each has `Id` and `Message`. |
+| `Errors` | `List<BulkOperationErrorDTO>` | Per-document errors, if any. Each has `Id` and `Message`. |
 
 ### Auth DTOs
 

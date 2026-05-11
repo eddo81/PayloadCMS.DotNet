@@ -1,13 +1,6 @@
-namespace PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Models.Errors;
 
-/// <summary>Represents a single error from a bulk operation.</summary>
-public sealed class BulkOperationError
-{
-    /// <summary>The ID of the document that failed.</summary>
-    public string Id { get; set; } = "";
-    /// <summary>The error message.</summary>
-    public string Message { get; set; } = "";
-}
+namespace PayloadCMS.DotNet.Models.Collection;
 
 /// <summary>
 /// Represents the result of a bulk write operation (update or delete).
@@ -18,7 +11,7 @@ public sealed class BulkOperationDTO
     /// <summary>The documents that were successfully affected.</summary>
     public List<DocumentDTO> Docs { get; set; } = new();
     /// <summary>Any per-document errors that occurred during the operation.</summary>
-    public List<BulkOperationError> Errors { get; set; } = new();
+    public List<BulkOperationErrorDTO> Errors { get; set; } = new();
 
     internal static BulkOperationDTO FromJson(Dictionary<string, object?> json)
     {
@@ -42,7 +35,7 @@ public sealed class BulkOperationDTO
             {
                 if (item is Dictionary<string, object?> errorItem)
                 {
-                    var error = new BulkOperationError();
+                    var error = new BulkOperationErrorDTO();
 
                     if (errorItem.ContainsKey("id") && errorItem["id"] is string idValue)
                     {
