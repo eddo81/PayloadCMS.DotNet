@@ -12,4 +12,21 @@ public sealed class BulkOperationErrorDTO
     public string Id { get; set; } = "";
     /// <summary>The error message.</summary>
     public string Message { get; set; } = "";
+
+    internal static BulkOperationErrorDTO FromJson(Dictionary<string, object?> json)
+    {
+        var dto = new BulkOperationErrorDTO();
+
+        if (json.ContainsKey("id") && json["id"] is string idValue)
+        {
+            dto.Id = idValue;
+        }
+
+        if (json.ContainsKey("message") && json["message"] is string messageValue)
+        {
+            dto.Message = messageValue;
+        }
+
+        return dto;
+    }
 }

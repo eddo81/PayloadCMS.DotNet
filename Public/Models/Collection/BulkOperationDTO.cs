@@ -35,19 +35,7 @@ public sealed class BulkOperationDTO
             {
                 if (item is Dictionary<string, object?> errorItem)
                 {
-                    var error = new BulkOperationErrorDTO();
-
-                    if (errorItem.ContainsKey("id") && errorItem["id"] is string idValue)
-                    {
-                        error.Id = idValue;
-                    }
-
-                    if (errorItem.ContainsKey("message") && errorItem["message"] is string messageValue)
-                    {
-                        error.Message = messageValue;
-                    }
-
-                    dto.Errors.Add(error);
+                    dto.Errors.Add(BulkOperationErrorDTO.FromJson(errorItem));
                 }
             }
         }
