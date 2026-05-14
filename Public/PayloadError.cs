@@ -32,11 +32,11 @@ public class PayloadError : Exception
     /// <summary>
     /// The parsed error entries from <c>errors[]</c> in the response body.
     /// Each entry exposes the base fields Payload guarantees across all error types
-    /// (<see cref="ErrorResultDTO.Name"/>, <see cref="ErrorResultDTO.Message"/>,
-    /// <see cref="ErrorResultDTO.Field"/>), plus a <see cref="ErrorResultDTO.Json"/>
+    /// (<see cref="RequestErrorDTO.Name"/>, <see cref="RequestErrorDTO.Message"/>,
+    /// <see cref="RequestErrorDTO.Field"/>), plus a <see cref="RequestErrorDTO.Json"/>
     /// escape hatch for richer types such as <c>ValidationError</c>.
     /// </summary>
-    public readonly IReadOnlyList<ErrorResultDTO> Result;
+    public readonly IReadOnlyList<RequestErrorDTO> Result;
 
     /// <summary>Initializes a new <see cref="PayloadError"/>.</summary>
     /// <param name="statusCode">The HTTP status code.</param>
@@ -67,7 +67,7 @@ public class PayloadError : Exception
             ServerStack = stackValue;
         }
 
-        var result = new List<ErrorResultDTO>();
+        var result = new List<RequestErrorDTO>();
 
         if (json != null && json.ContainsKey("errors") && json["errors"] is List<object?> errors)
         {
@@ -78,7 +78,7 @@ public class PayloadError : Exception
                     continue;
                 }
 
-                result.Add(ErrorResultDTO.FromJson(error));
+                result.Add(RequestErrorDTO.FromJson(error));
             }
         }
 

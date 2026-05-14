@@ -903,7 +903,7 @@ Returned by bulk write operations (`Update`, `Delete`). Maps to Payload's `BulkO
 | `ResetPasswordResultDTO` | `ResetPassword()` | `User`, `Token` |
 | `MessageDTO` | `ForgotPassword()`, `VerifyEmail()`, `Logout()`, `Unlock()` | `Message` |
 
-### ErrorResultDTO
+### RequestErrorDTO
 
 Found in `PayloadCMS.DotNet.Models.Errors`. Represents one entry in the `errors[]` array from a failed Payload response. Payload's error shape is intentionally dynamic — only the base fields below are guaranteed across all error types. The `Json` property gives access to the full raw entry, including the `data` block present on `ValidationError` and `APIError` responses.
 
@@ -929,7 +929,7 @@ public class PayloadError : Exception
     public readonly HttpResponseMessage? Response;
     public readonly string? Body;
     public readonly string? ServerStack;
-    public readonly IReadOnlyList<ErrorResultDTO> Result;
+    public readonly IReadOnlyList<RequestErrorDTO> Result;
 }
 ```
 
@@ -940,9 +940,9 @@ public class PayloadError : Exception
 | `Message` | `string` | Human-readable status code message (from `Exception`). |
 | `Body` | `string?` | The raw unparsed JSON response body, if available. |
 | `ServerStack` | `string?` | Server-side stack trace. Payload includes this in development mode only. |
-| `Result` | `IReadOnlyList<ErrorResultDTO>` | Parsed entries from `errors[]` in the response body. |
+| `Result` | `IReadOnlyList<RequestErrorDTO>` | Parsed entries from `errors[]` in the response body. |
 
-Each entry in `Result` is an [`ErrorResultDTO`](#errorresultdto).
+Each entry in `Result` is an [`RequestErrorDTO`](#errorresultdto).
 
 ### Basic usage
 
@@ -958,7 +958,7 @@ catch (PayloadError ex)
 {
     Console.WriteLine($"Status: {ex.StatusCode}");
 
-    foreach (ErrorResultDTO entry in ex.Result)
+    foreach (RequestErrorDTO entry in ex.Result)
     {
         Console.WriteLine($"{entry.Name ?? "error"}: {entry.Message}");
     }
@@ -1035,7 +1035,7 @@ Then use it when catching a `PayloadError`:
 ```csharp
 catch (PayloadError error)
 {
-    foreach (ErrorResultDTO result in error.Result)
+    foreach (RequestErrorDTO result in error.Result)
     {
         ValidationError? validationError = ValidationError.FromJson(result.Json);
 

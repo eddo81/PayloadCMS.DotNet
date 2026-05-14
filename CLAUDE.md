@@ -74,7 +74,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `JoinBuilder` — public fluent join builder (with `IsDisabled` getter) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `QueryBuilder` — public fluent facade over `WhereBuilder`, `SelectBuilder`, and `JoinBuilder` in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `ServerStack`, `Result`) in `Public/`, namespace `PayloadCMS.DotNet`
-- `ErrorResultDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
+- `RequestErrorDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
 - `FileUpload` — public `IFileUpload` sealed record implementation
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`

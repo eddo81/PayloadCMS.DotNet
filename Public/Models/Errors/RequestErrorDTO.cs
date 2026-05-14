@@ -9,7 +9,7 @@ namespace PayloadCMS.DotNet.Models.Errors;
 /// and <c>APIError</c> responses, which consumers can inspect and map to their own types.
 /// </para>
 /// </summary>
-public sealed class ErrorResultDTO
+public sealed class RequestErrorDTO
 {
     /// <summary>The full raw JSON for this <c>errors[n]</c> entry.</summary>
     public Dictionary<string, object?> Json { get; set; } = new();
@@ -30,9 +30,9 @@ public sealed class ErrorResultDTO
     /// </summary>
     public string? Field { get; set; }
 
-    internal static ErrorResultDTO FromJson(Dictionary<string, object?> json)
+    internal static RequestErrorDTO FromJson(Dictionary<string, object?> json)
     {
-        var result = new ErrorResultDTO
+        var result = new RequestErrorDTO
         {
             Json = json,
         };
