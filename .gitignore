@@ -40,3 +40,4 @@ LIBRARY.md
 TYPESCRIPT_BACKPORT.md
 PROJECT_GUIDELINES.md
 .mcp.json
+*.lscache
