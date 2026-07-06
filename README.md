@@ -1,6 +1,6 @@
 # Payload CMS HTTP Client
 
-A lightweight HTTP client for the [Payload CMS](https://payloadcms.com/) REST API. Built in C# (.NET 6.0 and .NET 8.0) as part of a cross-language port alongside TypeScript and Dart implementations.
+A lightweight HTTP client for the [Payload CMS](https://payloadcms.com/) REST API. Built in C# (.NET 8.0+) as part of a cross-language port alongside TypeScript and Dart implementations.
 
 - Typed methods for collections, globals, auth, and versions
 - Fluent query builder with where clauses, joins, sorting, and pagination
@@ -696,6 +696,8 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `Sort` | `string field` | Sort ascending by field. |
 | `SortByDescending` | `string field` | Sort descending by field. |
 | `Depth` | `int value` | Population depth for relationships. |
+| `Draft` | `bool value` | Operate on draft versions (collections/globals with versions enabled). |
+| `Trash` | `bool value` | Include soft-deleted documents (collections with trash enabled). |
 | `Locale` | `string value` | Locale for localized fields. |
 | `FallbackLocale` | `string value` | Fallback locale. |
 | `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
@@ -942,7 +944,7 @@ public class PayloadError : Exception
 | `ServerStack` | `string?` | Server-side stack trace. Payload includes this in development mode only. |
 | `Result` | `IReadOnlyList<RequestErrorDTO>` | Parsed entries from `errors[]` in the response body. |
 
-Each entry in `Result` is an [`RequestErrorDTO`](#errorresultdto).
+Each entry in `Result` is an [`RequestErrorDTO`](#requesterrordto).
 
 ### Basic usage
 

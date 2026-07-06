@@ -14,6 +14,8 @@ public class QueryBuilder
     private int? _page;
     private string? _sort;
     private int? _depth;
+    private bool? _draft;
+    private bool? _trash;
     private string? _locale;
     private string? _fallbackLocale;
     private string? _populate;
@@ -86,6 +88,33 @@ public class QueryBuilder
     public QueryBuilder Depth(int value)
     {
         _depth = value;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Requests <c>draft</c> versions of documents where available.
+    /// <para>Required for reading or writing unpublished drafts on
+    /// collections and globals with versions enabled.</para>
+    /// </summary>
+    /// <param name="value"><c>true</c> to operate on drafts.</param>
+    /// <returns>The current builder for chaining.</returns>
+    public QueryBuilder Draft(bool value)
+    {
+        _draft = value;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Includes soft-deleted (<c>trash</c>) documents in the query.
+    /// <para>Only meaningful on collections with <c>trash</c> enabled (Payload v3).</para>
+    /// </summary>
+    /// <param name="value"><c>true</c> to include soft-deleted documents.</param>
+    /// <returns>The current builder for chaining.</returns>
+    public QueryBuilder Trash(bool value)
+    {
+        _trash = value;
 
         return this;
     }
@@ -239,6 +268,16 @@ public class QueryBuilder
         if (_depth != null)
         {
             result["depth"] = _depth;
+        }
+
+        if (_draft != null)
+        {
+            result["draft"] = _draft;
+        }
+
+        if (_trash != null)
+        {
+            result["trash"] = _trash;
         }
 
         if (_locale != null)

@@ -8,9 +8,9 @@ Local: `C:\Users\Eduardo\Desktop\payload-cms-http-client`
 Read TS source files directly with Read/Glob/Grep for parity reference — no HTTP needed.
 
 ## Project Setup
-- Target: .NET 6.0 + .NET 8.0 (multi-targeted), nullable enabled, implicit usings enabled
+- Target: .NET 8.0 only (no net6.0 — do not add it back), nullable enabled, implicit usings enabled
 - Dependencies: `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Http` (DI extension), `Microsoft.SourceLink.GitHub` (build-time only)
-- Solution: `Payload.CMS.sln`, main project: `Payload.CMS.csproj` (`PackageId: PayloadCMS.DotNet`, `AssemblyName: PayloadCMS.DotNet`), tests: `Tests/Payload.CMS.Tests.csproj`
+- Solution: `PayloadCMS.DotNet.sln`, main project: `PayloadCMS.DotNet.csproj` (`PackageId: PayloadCMS.DotNet`, `AssemblyName: PayloadCMS.DotNet`), tests: `Tests/Payload.CMS.Tests.csproj`
 - Test project: xUnit v3, targets net8.0 only, `OutputType=Exe`
 
 ## Core Type Mappings
@@ -79,7 +79,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 87 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 94 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -118,3 +118,74 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `updateGlobal` → unwrap `result` key (NOT `doc`)
 - `count` → `TotalDocsDTO.FromJson(json).TotalDocs` returns `int`
 - All others → full response into appropriate DTO
+
+
+## Parity Audit Action Plan (2026-07-06)
+
+Findings from the audit against `@shopnex/payload-sdk` (the official Payload TS SDK) and this
+project's own design docs. Ordered by importance. Items marked **shared** exist identically in the
+TS source — fix C# first, then log the backport in `TYPESCRIPT_BACKPORT.md` so the ports reconverge.
+
+### 1. [x] Culture-invariant number encoding — C#-only bug
+`QueryStringEncoder.SerializePrimitive` falls through to `value.ToString()`, which is
+culture-sensitive. On a `sv-SE` machine `3.14` encodes as `3,14` — and because `,` is deliberately
+left unescaped, the query value is corrupted. TS `String(3.14)` is always invariant.
+**Fix**: `Convert.ToString(value, CultureInfo.InvariantCulture)` for the primitive fallback.
+
+### 2. [x] Parse response body only after the status check — C#-only divergence
+Private `Request` in `PayloadSDK.cs` calls `JsonParser.Parse(text)` *before* checking
+`IsSuccessStatusCode`; TS parses only after the `ok` check. A non-2xx response with a non-JSON body
+(proxy HTML page, plain-text 502) therefore throws a generic wrapped `JsonException` instead of
+`PayloadError` with the status code. **Fix**: move the parse below the status check (also removes a
+wasted parse — `PayloadError` parses the body itself).
+
+### 3. [x] Numeric document IDs — shared, backport to TS
+`DocumentDTO.FromJson` and `BulkOperationErrorDTO.FromJson` only accept `id` when it is a string.
+Payload on Postgres/SQLite returns numeric IDs, so `Id` silently stays `""`. The official SDK
+sidesteps this via generics; our DTO design must normalize instead.
+**Fix**: also accept `int`/`long`/`double` ids and normalize to string (invariant culture).
+TS backport: `typeof data['id'] === 'number'` → `String(data['id'])`.
+
+### 4. [x] `_payload` multipart part should be a plain string — C#-only divergence
+`FormDataBuilder` uses `JsonContent.Create(data)`, which stamps the form part with
+`Content-Type: application/json`. TS appends a plain string, and PROJECT_GUIDELINES §8.10
+prescribes `StringContent(JsonSerializer.Serialize(data))`. Some multipart parsers treat typed
+parts differently from plain string fields. **Fix**: use plain `StringContent` per the guidelines.
+Verify with an upload test against the live CMS afterwards.
+
+### 5. [x] `Draft()` / `Trash()` query params — shared feature gap vs official SDK
+The official SDK's `buildSearchParams` supports `draft` (draft/versions workflow) and `trash`
+(Payload v3 soft delete). Neither port exposes them, which undercuts the otherwise-complete
+versions API. **Fix**: add `Draft(bool value)` and `Trash(bool value)` to `QueryBuilder`,
+serialized as `draft=true` / `trash=true`. TS backport: `draft({ value })` / `trash({ value })`.
+
+### 6. [ ] `Populate()` semantics — shared, needs live verification before redesign
+Both ports comma-join fields into `populate=a,b`. PROJECT_GUIDELINES §5.4 specifies indexed/object
+notation, and Payload v3 actually expects `populate[<collection>][<field>]=true` (a select shape
+keyed by collection slug — see official `PopulateType`). The current output is likely ignored
+server-side. **Do not fix blind**: verify against the live meeple-mafia CMS first, then redesign
+the API (likely `Populate(string collection, string[] fields)`) in both ports together.
+
+### 7. [x] DateTime parse hardening — C#-only minor
+`DocumentDTO.FromJson` uses bare `DateTime.TryParse` (culture-sensitive, converts to local time).
+**Fix**: parse with `CultureInfo.InvariantCulture` + `DateTimeStyles.RoundtripKind`.
+
+### 8. [x] Doc/spec drift
+- Target framework: net8.0 only is correct — docs previously promised net6.0 and have been
+  aligned to net8.0+ instead (user decision 2026-07-06).
+- This file's Project Setup section references `Payload.CMS.csproj`; actual file is
+  `PayloadCMS.DotNet.csproj`.
+- PROJECT_GUIDELINES §6.1 (TS repo) lists `updateGlobal` as PATCH; both implementations and
+  Payload's REST API use POST. The code is right; fix the table.
+- README `RequestErrorDTO` section links to stale `#errorresultdto` anchor.
+- Test count drift: keep the count in Implementation Status current.
+
+### Accepted (no action)
+- Custom `Content-Type` set via `SetHeaders()` is dropped in C# (HttpContent owns the header) —
+  edge case with no Payload-relevant consequence; TS would honor it. Documented divergence.
+- `TryConvertInt` truncates `long`/`double` — mirrors loose JS number semantics; timestamps fit.
+
+### Integration-lab checklist (CmsProject)
+Exercises every risky finding: populate on a real relationship field · file upload · document fetch
+on the configured DB adapter (numeric IDs) · `where` with a decimal value · request to a non-API
+route (error path).

@@ -96,6 +96,20 @@ public class PayloadSDKTests
         Assert.Contains("/api/posts/abc123", handler.LastRequest.RequestUri!.ToString());
     }
 
+    [Fact]
+    public async Task FindById_NumericId_IsNormalizedToString()
+    {
+        // Postgres/SQLite adapters return numeric ids instead of Mongo-style strings.
+        const string json = """
+            { "id": 42, "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }
+            """;
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var result = await sdk.FindById("posts", "42");
+
+        Assert.Equal("42", result.Id);
+    }
+
     // ── Create ──────────────────────────────────────────────────
 
     [Fact]
@@ -112,6 +126,46 @@ public class PayloadSDKTests
         Assert.Equal("new1", result.Id);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Contains("/api/posts", handler.LastRequest.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task Create_WithFile_SendsMultipartWithPlainStringPayloadPart()
+    {
+        const string json = """
+            { "doc": { "id": "new1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, json);
+
+        var data = new Dictionary<string, object?> { ["alt"] = "My image" };
+        var file = new PayloadCMS.DotNet.Upload.FileUpload(new byte[] { 1, 2, 3 }, "photo.png", "image/png");
+        await sdk.Create("media", data, file);
+
+        var multipart = Assert.IsType<MultipartFormDataContent>(handler.LastRequest!.Content);
+        HttpContent? filePart = null;
+        HttpContent? payloadPart = null;
+
+        foreach (var part in multipart)
+        {
+            if (part.Headers.ContentDisposition!.Name!.Trim('"') == "file")
+            {
+                filePart = part;
+            }
+
+            if (part.Headers.ContentDisposition!.Name!.Trim('"') == "_payload")
+            {
+                payloadPart = part;
+            }
+        }
+
+        Assert.NotNull(filePart);
+        Assert.Equal("image/png", filePart!.Headers.ContentType!.MediaType);
+
+        // _payload must be a plain string field (TS: formData.append('_payload', JSON.stringify(data))),
+        // NOT an application/json part — some multipart parsers treat typed parts as files.
+        Assert.NotNull(payloadPart);
+        Assert.NotEqual("application/json", payloadPart!.Headers.ContentType?.MediaType);
+        var payloadText = await payloadPart.ReadAsStringAsync();
+        Assert.Contains("My image", payloadText);
     }
 
     // ── UpdateById ──────────────────────────────────────────────
@@ -538,6 +592,21 @@ public class PayloadSDKTests
 
         Assert.Equal(404, exception.StatusCode);
         Assert.NotEmpty(exception.Result);
+    }
+
+    [Fact]
+    public async Task Find_NonOkResponseWithNonJsonBody_ThrowsPayloadError()
+    {
+        // A proxy or gateway can answer with an HTML error page. The status check must
+        // run before JSON parsing so this still surfaces as PayloadError, not JsonException.
+        const string html = "<html><body>502 Bad Gateway</body></html>";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadGateway, html);
+
+        var exception = await Assert.ThrowsAsync<PayloadError>(() => sdk.Find("posts"));
+
+        Assert.Equal(502, exception.StatusCode);
+        Assert.Equal(html, exception.Body);
+        Assert.Empty(exception.Result);
     }
 
     [Fact]

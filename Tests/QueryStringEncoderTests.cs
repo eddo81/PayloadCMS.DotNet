@@ -97,4 +97,32 @@ public class QueryStringEncoderTests
 
         Assert.Equal("", queryString);
     }
+
+    [Fact]
+    public void ShouldEncodeDecimalNumbersInvariantOfCulture()
+    {
+        // sv-SE renders 3.14 as "3,14" via ToString() — the encoder must stay invariant
+        // because "," is deliberately left unescaped in Payload query strings.
+        var originalCulture = Thread.CurrentThread.CurrentCulture;
+
+        try
+        {
+            Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("sv-SE");
+
+            var obj = new Dictionary<string, object?>
+            {
+                ["price"] = 3.14,
+                ["ratio"] = 0.5f,
+                ["amount"] = 19.95m
+            };
+            var queryString = TestHelpers.Normalize(_encoder.Stringify(obj));
+            var expected = TestHelpers.Normalize("price=3.14&ratio=0.5&amount=19.95");
+
+            Assert.Equal(expected, queryString);
+        }
+        finally
+        {
+            Thread.CurrentThread.CurrentCulture = originalCulture;
+        }
+    }
 }

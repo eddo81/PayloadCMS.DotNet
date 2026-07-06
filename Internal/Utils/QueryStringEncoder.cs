@@ -1,4 +1,6 @@
-﻿namespace PayloadCMS.DotNet.Internal.Utils;
+﻿using System.Globalization;
+
+namespace PayloadCMS.DotNet.Internal.Utils;
 /// <summary>
 /// Serializes nested objects into Payload CMS query strings.
 /// <para>Preserves Payload's bracketed syntax (e.g. <c>where[title][equals]=foo</c>)
@@ -213,6 +215,8 @@ internal class QueryStringEncoder
             return $"{key}={SafeEncode(b ? "true" : "false")}";
         }
 
-        return $"{key}={SafeEncode(value!.ToString()!)}";
+        // Invariant culture — plain ToString() would render 3.14 as "3,14" under
+        // decimal-comma locales, and "," is deliberately left unescaped.
+        return $"{key}={SafeEncode(Convert.ToString(value, CultureInfo.InvariantCulture)!)}";
     }
 }

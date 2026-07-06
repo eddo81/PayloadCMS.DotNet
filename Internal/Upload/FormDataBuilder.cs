@@ -1,6 +1,6 @@
 ﻿using PayloadCMS.DotNet.Internal.Contracts;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace PayloadCMS.DotNet.Internal.Upload;
 
@@ -25,7 +25,10 @@ internal class FormDataBuilder
 
         formData.Add(name: "file", content: fileContent, fileName: file.FileName);
 
-        formData.Add(name: "_payload", content: JsonContent.Create(data));
+        // Plain string part — mirrors TS formData.append('_payload', JSON.stringify(data)).
+        // JsonContent would stamp the part with Content-Type: application/json, which some
+        // multipart parsers treat as a file rather than a string field.
+        formData.Add(name: "_payload", content: new StringContent(JsonSerializer.Serialize(data)));
 
         return formData;
     }

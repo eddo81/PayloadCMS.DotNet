@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace PayloadCMS.DotNet.Models.Errors;
 
 /// <summary>
@@ -20,6 +22,11 @@ public sealed class BulkOperationErrorDTO
         if (json.ContainsKey("id") && json["id"] is string idValue)
         {
             dto.Id = idValue;
+        }
+        else if (json.ContainsKey("id") && (json["id"] is int || json["id"] is long || json["id"] is double))
+        {
+            // Postgres/SQLite adapters return numeric ids — normalize to string.
+            dto.Id = Convert.ToString(json["id"], CultureInfo.InvariantCulture)!;
         }
 
         if (json.ContainsKey("message") && json["message"] is string messageValue)

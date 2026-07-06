@@ -33,6 +33,30 @@ public class QueryBuilderTests
     }
 
     [Fact]
+    public void DraftShouldSerializeAsLowercaseBoolean()
+    {
+        var params_ = new QueryBuilder()
+            .Draft(true)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("draft=true", actual);
+    }
+
+    [Fact]
+    public void TrashShouldSerializeAsLowercaseBoolean()
+    {
+        var params_ = new QueryBuilder()
+            .Trash(true)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("trash=true", actual);
+    }
+
+    [Fact]
     public void WhereWithNestedOrGroupShouldFlattenCorrectly()
     {
         var params_ = new QueryBuilder()

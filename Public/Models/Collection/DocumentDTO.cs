@@ -1,4 +1,6 @@
-﻿namespace PayloadCMS.DotNet.Models.Collection;
+﻿using System.Globalization;
+
+namespace PayloadCMS.DotNet.Models.Collection;
 
 /// <summary>
 /// Represents a Payload CMS document.
@@ -33,13 +35,18 @@ public sealed class DocumentDTO
         {
             dto.Id = idValue;
         }
+        else if (data.ContainsKey("id") && (data["id"] is int || data["id"] is long || data["id"] is double))
+        {
+            // Postgres/SQLite adapters return numeric ids — normalize to string.
+            dto.Id = Convert.ToString(data["id"], CultureInfo.InvariantCulture)!;
+        }
 
-        if (data.ContainsKey("createdAt") && data["createdAt"] is string createdAtString && createdAtString != "" && DateTime.TryParse(createdAtString, out DateTime createdAtDate))
+        if (data.ContainsKey("createdAt") && data["createdAt"] is string createdAtString && createdAtString != "" && DateTime.TryParse(createdAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime createdAtDate))
         {
             dto.CreatedAt = createdAtDate;
         }
 
-        if (data.ContainsKey("updatedAt") && data["updatedAt"] is string updatedAtString && updatedAtString != "" && DateTime.TryParse(updatedAtString, out DateTime updatedAtDate))
+        if (data.ContainsKey("updatedAt") && data["updatedAt"] is string updatedAtString && updatedAtString != "" && DateTime.TryParse(updatedAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime updatedAtDate))
         {
             dto.UpdatedAt = updatedAtDate;
         }

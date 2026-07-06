@@ -197,11 +197,6 @@ public class PayloadSDK
 
             var text = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            if (text.Length > 0)
-            {
-                json = JsonParser.Parse(text);
-            }
-
             if (!response.IsSuccessStatusCode)
             {
                 throw new PayloadError(
@@ -209,6 +204,11 @@ public class PayloadSDK
                     response: response,
                     body: text.Length > 0 ? text : null
                 );
+            }
+
+            if (text.Length > 0)
+            {
+                json = JsonParser.Parse(text);
             }
 
             return json;
