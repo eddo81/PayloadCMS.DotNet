@@ -79,7 +79,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 94 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 97 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -159,12 +159,17 @@ The official SDK's `buildSearchParams` supports `draft` (draft/versions workflow
 versions API. **Fix**: add `Draft(bool value)` and `Trash(bool value)` to `QueryBuilder`,
 serialized as `draft=true` / `trash=true`. TS backport: `draft({ value })` / `trash({ value })`.
 
-### 6. [ ] `Populate()` semantics — shared, needs live verification before redesign
-Both ports comma-join fields into `populate=a,b`. PROJECT_GUIDELINES §5.4 specifies indexed/object
-notation, and Payload v3 actually expects `populate[<collection>][<field>]=true` (a select shape
-keyed by collection slug — see official `PopulateType`). The current output is likely ignored
-server-side. **Do not fix blind**: verify against the live meeple-mafia CMS first, then redesign
-the API (likely `Populate(string collection, string[] fields)`) in both ports together.
+### 6. [ ] `Populate()` semantics — shared; verified broken 2026-07-06, redesign deliberately LAST
+Live-verified: the comma encoding `populate=a,b` is ignored by Payload (response byte-identical to
+no populate); object notation `populate[<collection>][<field>]=true` works. Key semantics (never
+matched any Payload version — the comma model is Strapi/Mongoose-shaped): `populate` does NOT choose
+which relationships resolve (that is `depth`); it is a select mask applied to already-populated
+docs, keyed by target collection slug (polymorphic-safe), overriding the collection's
+`defaultPopulate`. Introduced in Payload v3.0 alongside `select`. Redesign:
+`Populate(string collection, string[] fields)`. Correctness assertion: with `depth>=1`,
+`Populate("users", ["name"])` yields author objects containing only `name`+`id`; with `depth=0` it
+has no effect. **Sequenced last by user decision (2026-07-06)** — after §11 draft writes and the
+empty-where guard — to build a solid mental model first. Backport §10.
 
 ### 7. [x] DateTime parse hardening — C#-only minor
 `DocumentDTO.FromJson` uses bare `DateTime.TryParse` (culture-sensitive, converts to local time).
@@ -180,10 +185,24 @@ the API (likely `Populate(string collection, string[] fields)`) in both ports to
 - README `RequestErrorDTO` section links to stale `#errorresultdto` anchor.
 - Test count drift: keep the count in Implementation Status current.
 
+### 9. [x] Draft writes — shared feature gap (found in integration pass 2026-07-06; C# done)
+`Create`/`UpdateById`/`UpdateGlobal` now accept `QueryBuilder? query = null` (placed after `data`,
+mirroring bulk `Update`), so `Draft(true)`/`Locale` work on writes. Three unit tests assert
+`draft=true` reaches the URL. Source-breaking for positional `file` callers — use `file:` named
+argument. TS backport pending — see `TYPESCRIPT_BACKPORT.md` §11 for the exact change table.
+
 ### Accepted (no action)
 - Custom `Content-Type` set via `SetHeaders()` is dropped in C# (HttpContent owns the header) —
   edge case with no Payload-relevant consequence; TS would honor it. Documented divergence.
 - `TryConvertInt` truncates `long`/`double` — mirrors loose JS number semantics; timestamps fit.
+- **Empty-`where` bulk `Update`/`Delete`: no client-side guard** (decision 2026-07-07, after full
+  design discussion — do not re-propose). The server 400 ("Missing 'where' query…") is
+  authoritative and its message is fully surfaced via `PayloadError.Result`; consumers should
+  render that (see CmsProject `PayloadErrorExtensions.ToDisplayMessage()`). A hard-coded guard
+  would over-validate if Payload ever relaxes the rule — "Payload behavior always wins" (§2.1).
+  This matches the official SDK exactly: its enforcement is TS-types only, zero runtime checks.
+  A C# type-level equivalent (bulk-query subtype / type-state builder) was evaluated and rejected
+  as class explosion contradicting §2.2 minimalism.
 
 ### Integration-lab checklist (CmsProject)
 Exercises every risky finding: populate on a real relationship field · file upload · document fetch

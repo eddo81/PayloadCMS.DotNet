@@ -129,6 +129,23 @@ public class PayloadSDKTests
     }
 
     [Fact]
+    public async Task Create_WithDraftQuery_AppendsDraftParamToUrl()
+    {
+        // Draft writes: saving a draft requires ?draft=true on the POST (Payload v3 drafts).
+        const string json = """
+            { "doc": { "id": "new1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, json);
+
+        var data = new Dictionary<string, object?> { ["title"] = "Hello" };
+        var query = new QueryBuilder().Draft(true);
+        await sdk.Create("posts", data, query);
+
+        Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
+        Assert.Contains("draft=true", handler.LastRequest.RequestUri!.Query);
+    }
+
+    [Fact]
     public async Task Create_WithFile_SendsMultipartWithPlainStringPayloadPart()
     {
         const string json = """
@@ -138,7 +155,7 @@ public class PayloadSDKTests
 
         var data = new Dictionary<string, object?> { ["alt"] = "My image" };
         var file = new PayloadCMS.DotNet.Upload.FileUpload(new byte[] { 1, 2, 3 }, "photo.png", "image/png");
-        await sdk.Create("media", data, file);
+        await sdk.Create("media", data, file: file);
 
         var multipart = Assert.IsType<MultipartFormDataContent>(handler.LastRequest!.Content);
         HttpContent? filePart = null;
@@ -184,6 +201,23 @@ public class PayloadSDKTests
         Assert.Equal("abc123", result.Id);
         Assert.Equal(HttpMethod.Patch, handler.LastRequest!.Method);
         Assert.Contains("/api/posts/abc123", handler.LastRequest.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task UpdateById_WithDraftQuery_AppendsDraftParamToUrl()
+    {
+        const string json = """
+            { "doc": { "id": "abc123", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var data = new Dictionary<string, object?> { ["title"] = "Draft edit" };
+        var query = new QueryBuilder().Draft(true);
+        await sdk.UpdateById("posts", "abc123", data, query);
+
+        Assert.Equal(HttpMethod.Patch, handler.LastRequest!.Method);
+        Assert.Contains("/api/posts/abc123", handler.LastRequest.RequestUri!.ToString());
+        Assert.Contains("draft=true", handler.LastRequest.RequestUri!.Query);
     }
 
     // ── DeleteById ──────────────────────────────────────────────
@@ -291,6 +325,22 @@ public class PayloadSDKTests
         Assert.Equal("g1", result.Id);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Contains("/api/globals/site-settings", handler.LastRequest.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task UpdateGlobal_WithDraftQuery_AppendsDraftParamToUrl()
+    {
+        const string json = """
+            { "result": { "id": "g1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var data = new Dictionary<string, object?> { ["siteName"] = "Draft name" };
+        var query = new QueryBuilder().Draft(true);
+        await sdk.UpdateGlobal("site-settings", data, query);
+
+        Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
+        Assert.Contains("draft=true", handler.LastRequest.RequestUri!.Query);
     }
 
     // ── FindVersions ────────────────────────────────────────────

@@ -169,13 +169,14 @@ int total = await client.Count("posts");
 Creates a new document. Supports file uploads on upload-enabled collections.
 
 ```csharp
-Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, FileUpload? file = null, CancellationToken cancellationToken = default)
+Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, QueryBuilder? query = null, FileUpload? file = null, CancellationToken cancellationToken = default)
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `slug` | `string` | Collection slug. |
 | `data` | `Dictionary<string, object?>` | Document data. |
+| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Draft(true)` to create as a draft, or `Locale`. |
 | `file` | `FileUpload?` | Optional file to upload (for upload-enabled collections). |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
@@ -216,7 +217,7 @@ var file = new FileUpload(
 DocumentDTO document = await client.Create("media", new Dictionary<string, object?>
 {
     ["alt"] = "My image",
-}, file);
+}, file: file);
 ```
 
 ### Update by ID
@@ -224,7 +225,7 @@ DocumentDTO document = await client.Create("media", new Dictionary<string, objec
 Updates a single document by ID. Supports file replacement.
 
 ```csharp
-Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?> data, FileUpload? file = null, CancellationToken cancellationToken = default)
+Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?> data, QueryBuilder? query = null, FileUpload? file = null, CancellationToken cancellationToken = default)
 ```
 
 | Parameter | Type | Description |
@@ -232,6 +233,7 @@ Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?>
 | `slug` | `string` | Collection slug. |
 | `id` | `string` | Document ID. |
 | `data` | `Dictionary<string, object?>` | Fields to update. |
+| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Draft(true)` to save the edit as a draft version. |
 | `file` | `FileUpload?` | Optional replacement file. |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
@@ -240,6 +242,32 @@ Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?>
 DocumentDTO document = await client.UpdateById("posts", "123", new Dictionary<string, object?>
 {
     ["title"] = "Updated Title",
+});
+```
+
+#### Draft writes
+
+On collections with drafts enabled (`versions: { drafts: true }`), pass `Draft(true)` to save the
+change as a draft version without touching the published document. Reading the draft back requires
+`Draft(true)` on the read as well:
+
+```csharp
+var draftQuery = new QueryBuilder().Draft(true);
+
+// Save a draft edit — the published document is unchanged
+await client.UpdateById("posts", "123", new Dictionary<string, object?>
+{
+    ["title"] = "Work-in-progress title",
+}, draftQuery);
+
+// Plain read → published content; Draft(true) read → the draft overlay
+DocumentDTO published = await client.FindById("posts", "123");
+DocumentDTO draft = await client.FindById("posts", "123", new QueryBuilder().Draft(true));
+
+// Publish the draft
+await client.UpdateById("posts", "123", new Dictionary<string, object?>
+{
+    ["_status"] = "published",
 });
 ```
 
@@ -330,10 +358,11 @@ DocumentDTO document = await client.FindGlobal("site-settings");
 
 ### Update global
 
-Updates a global document.
+Updates a global document. Pass `Draft(true)` via `query` to save as a draft (globals with
+versions + drafts enabled).
 
 ```csharp
-Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
+Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 #### Example

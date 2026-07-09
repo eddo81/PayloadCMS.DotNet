@@ -280,12 +280,13 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="data">The document data to create.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> for write-time params — e.g. <c>Draft(true)</c> to save as a draft, or <c>Locale</c>.</param>
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The created document.</returns>
-    public async Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, FileUpload? file = null, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, QueryBuilder? query = null, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}";
+        var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Post;
         HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
@@ -372,12 +373,13 @@ public class PayloadSDK
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="id">The document ID.</param>
     /// <param name="data">The fields to update.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> for write-time params — e.g. <c>Draft(true)</c> to save the edit as a draft version, or <c>Locale</c>.</param>
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The updated document.</returns>
-    public async Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?> data, FileUpload? file = null, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?> data, QueryBuilder? query = null, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}";
+        var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}", query);
         var method = HttpMethod.Patch;
         HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
@@ -430,11 +432,12 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>global</c> slug.</param>
     /// <param name="data">The fields to update.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> for write-time params — e.g. <c>Draft(true)</c> to save the edit as a draft version, or <c>Locale</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The updated <c>global</c> document.</returns>
-    public async Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}";
+        var url = AppendQueryString($"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Post;
         var body = JsonParser.Serialize(data);
 
