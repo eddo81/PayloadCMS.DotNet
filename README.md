@@ -731,7 +731,7 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `FallbackLocale` | `string value` | Fallback locale. |
 | `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
 | `Exclude` | `string[] fields` | Mark fields for exclusion. Supports dot notation. |
-| `Populate` | `string[] fields` | Relationships to populate. |
+| `Populate` | `string collection, string[] fields` | Field mask for populated docs from a collection. Requires `Depth >= 1`. |
 | `Where` | `string field, Operator op, object? value` | Add a where condition. |
 | `And` | `Action<WhereBuilder> callback` | Nested AND group. |
 | `Or` | `Action<WhereBuilder> callback` | Nested OR group. |
@@ -768,6 +768,37 @@ var query = new QueryBuilder()
 |--------|-----------|-------------|
 | `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
 | `Exclude` | `string[] fields` | Mark fields for exclusion. Supports dot notation. |
+
+### Populate
+
+`Populate` narrows which fields **populated related documents** contain — it is `Select` applied
+one hop across a relationship. It does *not* choose which relationships resolve into objects
+(that is `Depth`'s job) and has no effect at `Depth(0)`. It is keyed by the **target collection
+slug**, not the field name, so polymorphic relationships are masked consistently, and it
+**overrides** the target collection's `defaultPopulate` config (no merging). Payload always
+includes `id` on populated docs.
+
+```csharp
+// Posts with their author resolved, but only the author's name (+ id)
+var query = new QueryBuilder()
+    .Depth(1)
+    .Populate("users", new[] { "name" });
+
+PaginatedDocsDTO result = await client.Find("posts", query);
+
+// Serializes to: ?depth=1&populate[users][name]=true
+```
+
+Repeated calls for the same collection merge additively, and dot notation targets nested fields:
+
+```csharp
+var query = new QueryBuilder()
+    .Depth(1)
+    .Populate("users", new[] { "name" })
+    .Populate("users", new[] { "group.number" });
+
+// Serializes to: ?depth=1&populate[users][name]=true&populate[users][group][number]=true
+```
 
 ### WhereBuilder
 

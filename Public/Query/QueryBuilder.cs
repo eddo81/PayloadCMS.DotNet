@@ -18,7 +18,7 @@ public class QueryBuilder
     private bool? _trash;
     private string? _locale;
     private string? _fallbackLocale;
-    private string? _populate;
+    private readonly PopulateBuilder _populateBuilder = new PopulateBuilder();
     private readonly WhereBuilder _whereBuilder = new WhereBuilder();
     private readonly SelectBuilder _selectBuilder = new SelectBuilder();
     private readonly JoinBuilder _joinBuilder = new JoinBuilder();
@@ -172,13 +172,21 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Flags top-level <c>relationship</c> fields for population.
+    /// Masks the fields returned on populated documents from a target <c>collection</c>.
+    /// <para><c>populate</c> does not choose which relationships resolve — that is
+    /// <see cref="Depth"/>'s job. It narrows what already-populated documents contain,
+    /// overriding the target collection's <c>defaultPopulate</c> config. Has no effect
+    /// unless <c>depth &gt;= 1</c>.</para>
+    /// <para>Repeated calls for the same collection merge additively. Use dot notation
+    /// for nested paths (e.g. <c>"group.number"</c>).</para>
+    /// <para>Delegates to the internal <see cref="PopulateBuilder"/>.</para>
     /// </summary>
-    /// <param name="fields">Relationship field names to populate.</param>
+    /// <param name="collection">The target collection slug (e.g. <c>"users"</c>).</param>
+    /// <param name="fields">Field names to include on populated documents.</param>
     /// <returns>The current builder for chaining.</returns>
-    public QueryBuilder Populate(string[] fields)
+    public QueryBuilder Populate(string collection, string[] fields)
     {
-        _populate = string.Join(',', fields);
+        _populateBuilder.Populate(collection, fields);
 
         return this;
     }
@@ -248,6 +256,7 @@ public class QueryBuilder
     {
         var where = _whereBuilder.Build();
         var select = _selectBuilder.Build();
+        var populate = _populateBuilder.Build();
         var result = new Dictionary<string, object?>();
 
         if (_limit != null)
@@ -295,9 +304,9 @@ public class QueryBuilder
             result["select"] = select;
         }
 
-        if (_populate != null)
+        if (populate != null)
         {
-            result["populate"] = _populate;
+            result["populate"] = populate;
         }
 
         if (where != null)

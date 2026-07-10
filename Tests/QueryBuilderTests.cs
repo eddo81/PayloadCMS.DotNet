@@ -21,15 +21,67 @@ public class QueryBuilderTests
     }
 
     [Fact]
-    public void PopulateShouldSerializeAsCommaSeparatedList()
+    public void PopulateShouldSerializeAsCollectionKeyedSelectShape()
     {
         var params_ = new QueryBuilder()
-            .Populate(new[] { "author", "comments" })
+            .Populate("users", new[] { "name" })
             .Build();
 
         var actual = _encoder.Stringify(params_);
 
-        Assert.Equal("populate=author,comments", actual);
+        Assert.Equal("populate[users][name]=true", actual);
+    }
+
+    [Fact]
+    public void PopulateShouldSupportMultipleCollections()
+    {
+        var params_ = new QueryBuilder()
+            .Populate("users", new[] { "name" })
+            .Populate("boards", new[] { "title" })
+            .Build();
+
+        var actual = TestHelpers.Normalize(_encoder.Stringify(params_));
+        var expected = TestHelpers.Normalize("populate[users][name]=true&populate[boards][title]=true");
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void PopulateRepeatedCallsForSameCollectionShouldMergeAdditively()
+    {
+        var params_ = new QueryBuilder()
+            .Populate("users", new[] { "name" })
+            .Populate("users", new[] { "avatar" })
+            .Build();
+
+        var actual = TestHelpers.Normalize(_encoder.Stringify(params_));
+        var expected = TestHelpers.Normalize("populate[users][name]=true&populate[users][avatar]=true");
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void PopulateShouldExpandDotNotationIntoNestedShape()
+    {
+        var params_ = new QueryBuilder()
+            .Populate("users", new[] { "group.number" })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("populate[users][group][number]=true", actual);
+    }
+
+    [Fact]
+    public void PopulateWithEmptyCollectionSlugShouldBeSkipped()
+    {
+        var params_ = new QueryBuilder()
+            .Populate("", new[] { "name" })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
     }
 
     [Fact]

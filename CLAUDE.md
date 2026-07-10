@@ -72,6 +72,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `WhereBuilder` — public fluent expression builder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `SelectBuilder` — public fluent field-selection builder (delegates to `SelectClause` list, deep-merges results) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `JoinBuilder` — public fluent join builder (with `IsDisabled` getter) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `PopulateBuilder` — public fluent populate-mask builder (composes one `SelectBuilder` per collection slug) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `QueryBuilder` — public fluent facade over `WhereBuilder`, `SelectBuilder`, and `JoinBuilder` in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `ServerStack`, `Result`) in `Public/`, namespace `PayloadCMS.DotNet`
 - `RequestErrorDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
@@ -79,7 +80,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 97 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 101 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -159,7 +160,17 @@ The official SDK's `buildSearchParams` supports `draft` (draft/versions workflow
 versions API. **Fix**: add `Draft(bool value)` and `Trash(bool value)` to `QueryBuilder`,
 serialized as `draft=true` / `trash=true`. TS backport: `draft({ value })` / `trash({ value })`.
 
-### 6. [ ] `Populate()` semantics — shared; verified broken 2026-07-06, redesign deliberately LAST
+### 6. [x] `Populate()` semantics — DONE in C# 2026-07-09 (redesigned per user-approved design)
+`Populate(string collection, string[] fields)` — a select mask keyed by collection slug, emitting
+`populate[<collection>][<field>]=true`. Implemented as a dedicated **`PopulateBuilder`** in
+`Public/Query/` (builder-family symmetry — user review feedback 2026-07-09: every query-param
+family gets its own named builder; do not inline builder logic into the `QueryBuilder` facade).
+`PopulateBuilder` composes one `SelectBuilder` per collection slug (get-or-create), reusing its
+dot-notation expansion and deep merge. Repeated calls merge additively; empty slug is skipped
+(JoinBuilder precedent); no exclusion mode (deferred until a real use case). Old comma-list
+overload removed outright — it emitted a dead param. Five unit tests pin the wire shape. Live
+narrowing verification in the lab (QueryPopulate page) pending the next package bump.
+TS backport: §10 in `TYPESCRIPT_BACKPORT.md`. Original finding kept below for reference:
 Live-verified: the comma encoding `populate=a,b` is ignored by Payload (response byte-identical to
 no populate); object notation `populate[<collection>][<field>]=true` works. Key semantics (never
 matched any Payload version — the comma model is Strapi/Mongoose-shaped): `populate` does NOT choose
