@@ -109,6 +109,18 @@ public class QueryBuilderTests
     }
 
     [Fact]
+    public void PaginationShouldSerializeAsLowercaseBoolean()
+    {
+        var params_ = new QueryBuilder()
+            .Pagination(false)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("pagination=false", actual);
+    }
+
+    [Fact]
     public void WhereWithNestedOrGroupShouldFlattenCorrectly()
     {
         var params_ = new QueryBuilder()

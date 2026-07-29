@@ -80,7 +80,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 101 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 108 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -160,6 +160,75 @@ The official SDK's `buildSearchParams` supports `draft` (draft/versions workflow
 versions API. **Fix**: add `Draft(bool value)` and `Trash(bool value)` to `QueryBuilder`,
 serialized as `draft=true` / `trash=true`. TS backport: `draft({ value })` / `trash({ value })`.
 
+**PARKED (2026-07-09) — Draft/Trash capability gating, revisit later, do not re-litigate blind:**
+Item 5 is functionally done and at parity with the official SDK (top priority per user decision
+2026-07-09: parity with `@shopnex/payload-sdk`'s REST flavor is the primary goal). Open design
+discomfort, deliberately shelved: `Draft`/`Trash` sit unconditionally on `QueryBuilder` for every
+collection, but they're opt-in Payload features (`versions.drafts`, `trash: true` per collection).
+Live-verified 2026-07-09: sending `Draft(true)` against a collection with no drafts configured
+silently no-ops on reads (identical response with/without the flag) AND, worse, on **writes** —
+`?draft=true` PATCH against a non-versioned collection returns 200 and commits straight to the live
+document, no error, no signal. A developer using `Draft(true)` specifically to stage a safe
+non-public edit would silently publish it instead. This is a materially worse failure mode than
+`Populate`/`Join`/`Locale` no-opping (those are visible in the response shape; this isn't).
+Considered and rejected for now: client-side capability gating (mirroring which collections have
+drafts/trash enabled) — same risk class as the empty-`where` guard rejection above, one level
+worse: it requires mirroring *remote schema* the SDK has no way to query, which will drift the
+moment a collection's CMS config changes without the client being updated. The official SDK has
+the identical blind spot (flat options bag, zero capability checks) — so this is not a parity gap,
+it's a structural limitation of any out-of-process REST client. Options on the table when revisited:
+(1) doc-only — spell out the silent-live-write danger explicitly (cheapest, no staleness risk);
+(2) a documented consumer-side pattern — check `doc.Json.ContainsKey("_status")` after a
+`Draft`-flagged write to confirm versioning was actually active, analogous to CmsProject's own
+`PayloadErrorExtensions` pattern; (3) an explicit opt-in capability declaration on the SDK — new
+public surface, own staleness risk in the opposite direction, doesn't fit the one-builder-per-param
+shape. Leaning (1) + (2), not (3), but undecided — loop back after the current lab testing pass.
+
+**UPDATE (2026-07-29) — `trash: true` enabled on `posts`, real mechanics found, `DeleteById` fixed:**
+The "opt-in feature" half of the note above is now partially resolved for `Trash` specifically —
+`posts` has `trash: true`. Live-verified against Payload's compiled source: soft-delete ("trashing")
+is NOT a `Trash(true)` action at all — it's a plain `update()` setting `data.deletedAt`. `Trash(true)`
+only lifts a hidden `deletedAt IS NULL` filter that `find`/`update`/`delete` all apply by default;
+it's inclusive (matches trashed + normal), not exclusive-to-trash, and adds no restriction of its
+own. This exposed a real, separate gap: `DeleteById` had no `QueryBuilder` parameter at all, so a
+trashed document couldn't be permanently deleted by ID — the server 404s on a plain `DELETE`
+against an already-trashed doc, since the same hidden filter excludes it from being found. Fixed:
+`DeleteById` now takes `QueryBuilder? query = null`, same shape as the §11 write methods. See
+`TYPESCRIPT_BACKPORT.md` §12. The Draft/Trash capability-gating question above remains open and
+unrelated to this fix — this was a concrete missing-parameter bug, not the parked design question.
+
+**FULL RE-AUDIT (2026-07-29)** — the `DeleteById` gap prompted a complete method-by-method,
+parameter-by-parameter re-verification against the literal source of `packages/sdk/src` in
+`payloadcms/payload` (fetched raw, not summarized), after the user correctly pointed out the
+original audit never did this — it checked method existence and response-unwrapping shape, never
+a full parameter diff, which is exactly the class of gap that let `DeleteById` through undetected.
+Findings:
+
+- **Five more methods had zero query-parameter support at all** (same bug class as `DeleteById`):
+  `FindVersionById`, `RestoreVersion`, `FindGlobal`, `FindGlobalVersionById`,
+  `RestoreGlobalVersion`. **Fixed 2026-07-29** — all five now take `QueryBuilder? query = null`,
+  same pattern as §11/§12. Five new unit tests. See `TYPESCRIPT_BACKPORT.md` §13 for the exact TS
+  change table. `FindGlobal` was the most consequential of the five — one of the most-used
+  methods, previously unable to express `depth`, `locale`, or `select` at all.
+- **`QueryBuilder` was missing two official params** — `pagination?: boolean` and
+  `autosave?: boolean`. **`Pagination(bool value)` added 2026-07-29** (see
+  `TYPESCRIPT_BACKPORT.md` §15) — verified at the `buildSearchParams.ts` source level that it's
+  wired identically to `draft`/`trash`, not Local-API-only despite the docs' REST example only
+  showing `limit`/`page`. `autosave` deliberately **not** added — traced the same source and found
+  the official SDK's own `buildSearchParams` never reads it at all, so it's inert in the reference
+  implementation itself, not just under-documented. Live verification of `Pagination` against the
+  real REST response (does `pagination=false` ignore `limit`, or only skip the count query?) is
+  still pending — see the CmsProject lab plan.
+- **`disableErrors` has no equivalent** on `findById`/`findVersionById`/`findGlobalVersionById` —
+  official SDK can swallow a 404 and return `null`; ours always throws. Not a query-string param,
+  so not a `QueryBuilder` fix — would need an overload or nullable-return design. Flagged as an
+  open design question, not yet proposed as a concrete fix. See `TYPESCRIPT_BACKPORT.md` §14.
+
+Everything else (`Find`, `FindById`, `Create`, `Delete`/`DeleteById`, `Update`/`UpdateById`,
+`Count`, `UpdateGlobal`, all six auth methods) verified to already cover their full official
+parameter set. `Logout`/`Unlock` confirmed to genuinely not exist in the official SDK — pre-existing,
+documented C#-only additions, not a gap.
+
 ### 6. [x] `Populate()` semantics — DONE in C# 2026-07-09 (redesigned per user-approved design)
 `Populate(string collection, string[] fields)` — a select mask keyed by collection slug, emitting
 `populate[<collection>][<field>]=true`. Implemented as a dedicated **`PopulateBuilder`** in
@@ -214,6 +283,13 @@ argument. TS backport pending — see `TYPESCRIPT_BACKPORT.md` §11 for the exac
   This matches the official SDK exactly: its enforcement is TS-types only, zero runtime checks.
   A C# type-level equivalent (bulk-query subtype / type-state builder) was evaluated and rejected
   as class explosion contradicting §2.2 minimalism.
+
+### Backlog
+- **Full documentation reconciliation pass, per port** (added 2026-07-09). The C# repo's
+  `PROJECT_GUIDELINES.md` has drifted from the code (stale §8/§9 status tables, file tree gaps
+  beyond the query section, missing `Models/Errors` entries); the TS repo's copy and `README.md`s
+  should be swept in the same pass. Verify every table/tree/checklist against the actual source
+  on both sides. Do this as its own focused task, not piecemeal.
 
 ### Integration-lab checklist (CmsProject)
 Exercises every risky finding: populate on a real relationship field · file upload · document fetch

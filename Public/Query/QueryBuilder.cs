@@ -12,6 +12,7 @@ public class QueryBuilder
 {
     private int? _limit;
     private int? _page;
+    private bool? _pagination;
     private string? _sort;
     private int? _depth;
     private bool? _draft;
@@ -43,6 +44,24 @@ public class QueryBuilder
     public QueryBuilder Page(int value)
     {
         _page = value;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Toggles pagination. <c>Pagination(false)</c> returns every matching document and skips
+    /// the extra <c>totalDocs</c>/<c>totalPages</c> count query — a real REST parameter, verified
+    /// against Payload's own SDK source (<c>buildSearchParams</c> treats it identically to
+    /// <see cref="Draft"/>/<see cref="Trash"/>), not just a Local API convenience despite the
+    /// official docs' REST example only demonstrating <see cref="Limit"/>/<see cref="Page"/>.
+    /// <para>Combine with <see cref="Limit"/> to still cap the result count while skipping the
+    /// count query.</para>
+    /// </summary>
+    /// <param name="value"><c>false</c> to disable pagination and return all matches.</param>
+    /// <returns>The current builder for chaining.</returns>
+    public QueryBuilder Pagination(bool value)
+    {
+        _pagination = value;
 
         return this;
     }
@@ -93,11 +112,15 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Requests <c>draft</c> versions of documents where available.
-    /// <para>Required for reading or writing unpublished drafts on
-    /// collections and globals with versions enabled.</para>
+    /// Overlays the latest draft version of each returned document (<c>draft=true</c>).
+    /// <para>This is NOT a visibility filter — a plain find already returns documents
+    /// of every <c>_status</c>; filter on <c>_status</c> to control which documents
+    /// come back. What <c>draft=true</c> changes is the content: published documents
+    /// with a newer pending draft are returned with the draft's content instead.</para>
+    /// <para>On writes, saves the change as a draft version without touching the
+    /// published document. Requires drafts enabled on the collection/global.</para>
     /// </summary>
-    /// <param name="value"><c>true</c> to operate on drafts.</param>
+    /// <param name="value"><c>true</c> to read draft overlays / write draft versions.</param>
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder Draft(bool value)
     {
@@ -267,6 +290,11 @@ public class QueryBuilder
         if (_page != null)
         {
             result["page"] = _page;
+        }
+
+        if (_pagination != null)
+        {
+            result["pagination"] = _pagination;
         }
 
         if (_sort != null)

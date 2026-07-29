@@ -303,19 +303,41 @@ BulkOperationDTO result = await client.Update("posts", new Dictionary<string, ob
 Deletes a single document by ID.
 
 ```csharp
-Task<DocumentDTO> DeleteById(string slug, string id, CancellationToken cancellationToken = default)
+Task<DocumentDTO> DeleteById(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `slug` | `string` | Collection slug. |
 | `id` | `string` | Document ID. |
+| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Trash(true)` to permanently delete an already soft-deleted document. |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
 #### Example
 ```csharp
 DocumentDTO document = await client.DeleteById("posts", "123");
 ```
+
+#### Permanently deleting a trashed document
+
+On collections with `trash: true`, a soft-deleted document is invisible to a plain `DeleteById` —
+the server can't even find it by ID without `Trash(true)`, since the same hidden
+`deletedAt IS NULL` filter that hides trashed documents from reads also applies to deletes:
+
+```csharp
+// Soft-delete (trash) — a plain field write, no special flag needed
+await client.UpdateById("posts", "123", new Dictionary<string, object?> { ["deletedAt"] = DateTime.UtcNow });
+
+// Without Trash(true), the server can't find the trashed document — this 404s
+await client.DeleteById("posts", "123");
+
+// Trash(true) lifts the hidden filter so the delete can find and permanently remove it
+await client.DeleteById("posts", "123", new QueryBuilder().Trash(true));
+```
+
+`Trash(true)` is inclusive, not exclusive-to-trash — combining it with a broad `where` clause on
+the bulk `Delete` method (e.g. `Where("id", Operator.Exists, true)`) matches *every* document,
+trashed and normal alike. Scope bulk deletes carefully once trash is enabled.
 
 ### Bulk delete
 
@@ -348,12 +370,13 @@ BulkOperationDTO result = await client.Delete("posts", query);
 Retrieves a global document.
 
 ```csharp
-Task<DocumentDTO> FindGlobal(string slug, CancellationToken cancellationToken = default)
+Task<DocumentDTO> FindGlobal(string slug, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 #### Example
 ```csharp
 DocumentDTO document = await client.FindGlobal("site-settings");
+DocumentDTO localized = await client.FindGlobal("site-settings", new QueryBuilder().Depth(1).Locale("sv"));
 ```
 
 ### Update global
@@ -595,12 +618,13 @@ PaginatedDocsDTO result = await client.FindVersions("posts");
 Retrieves a single version by ID.
 
 ```csharp
-Task<DocumentDTO> FindVersionById(string slug, string id, CancellationToken cancellationToken = default)
+Task<DocumentDTO> FindVersionById(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 #### Example
 ```csharp
 DocumentDTO document = await client.FindVersionById("posts", "version-id");
+DocumentDTO trashed = await client.FindVersionById("posts", "version-id", new QueryBuilder().Trash(true));
 ```
 
 ### Restore version
@@ -608,7 +632,7 @@ DocumentDTO document = await client.FindVersionById("posts", "version-id");
 Restores a collection document to a specific version.
 
 ```csharp
-Task<DocumentDTO> RestoreVersion(string slug, string id, CancellationToken cancellationToken = default)
+Task<DocumentDTO> RestoreVersion(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 #### Example
@@ -634,7 +658,7 @@ PaginatedDocsDTO result = await client.FindGlobalVersions("site-settings");
 Retrieves a single global version by ID.
 
 ```csharp
-Task<DocumentDTO> FindGlobalVersionById(string slug, string id, CancellationToken cancellationToken = default)
+Task<DocumentDTO> FindGlobalVersionById(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 #### Example
@@ -647,7 +671,7 @@ DocumentDTO document = await client.FindGlobalVersionById("site-settings", "vers
 Restores a global document to a specific version.
 
 ```csharp
-Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, CancellationToken cancellationToken = default)
+Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
 ```
 
 #### Example
@@ -722,10 +746,11 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 |--------|-----------|-------------|
 | `Limit` | `int value` | Maximum documents per page. |
 | `Page` | `int value` | Page number. |
+| `Pagination` | `bool value` | `false` returns every match and skips the `totalDocs`/`totalPages` count query. Combine with `Limit` to still cap results. |
 | `Sort` | `string field` | Sort ascending by field. |
 | `SortByDescending` | `string field` | Sort descending by field. |
 | `Depth` | `int value` | Population depth for relationships. |
-| `Draft` | `bool value` | Operate on draft versions (collections/globals with versions enabled). |
+| `Draft` | `bool value` | Overlay latest draft content on reads; save as draft on writes. NOT a visibility filter — filter `_status` for that. |
 | `Trash` | `bool value` | Include soft-deleted documents (collections with trash enabled). |
 | `Locale` | `string value` | Locale for localized fields. |
 | `FallbackLocale` | `string value` | Fallback locale. |
@@ -771,8 +796,15 @@ var query = new QueryBuilder()
 
 ### Populate
 
+> **`Select` masks fields inside the document you queried. `Populate` masks fields inside
+> *other* documents embedded into it. `Depth` decides whether those other documents get
+> embedded at all.**
+
 `Populate` narrows which fields **populated related documents** contain — it is `Select` applied
-one hop across a relationship. It does *not* choose which relationships resolve into objects
+one hop across a relationship. It applies only at document boundaries: `relationship` and
+`upload` fields resolved by `Depth`. Nested structures *within* a document (`group`, `array`,
+`blocks`) are `Select`'s domain, and the `collection` argument is the target field's `relationTo`
+slug from your Payload config — not the field name. It does *not* choose which relationships resolve into objects
 (that is `Depth`'s job) and has no effect at `Depth(0)`. It is keyed by the **target collection
 slug**, not the field name, so polymorphic relationships are masked consistently, and it
 **overrides** the target collection's `defaultPopulate` config (no merging). Payload always

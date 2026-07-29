@@ -326,11 +326,12 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="id">The document ID.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Trash(true)</c> to permanently delete an already soft-deleted document (without it, the server can't find a trashed document by ID at all).</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The deleted document.</returns>
-    public async Task<DocumentDTO> DeleteById(string slug, string id, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> DeleteById(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}";
+        var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}", query);
         var method = HttpMethod.Delete;
 
         var json = await Request(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
@@ -416,11 +417,12 @@ public class PayloadSDK
     /// Retrieves a <c>global</c> document.
     /// </summary>
     /// <param name="slug">The <c>global</c> slug.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Depth</c>, <c>Locale</c>, <c>Draft(true)</c>, <c>Select</c>, <c>Populate</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The <c>global</c> document.</returns>
-    public async Task<DocumentDTO> FindGlobal(string slug, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> FindGlobal(string slug, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}";
+        var url = AppendQueryString($"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}", query);
         var json = await Request(url, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = DocumentDTO.FromJson(json);
 
@@ -475,11 +477,12 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="id">The <c>version</c> ID.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Depth</c>, <c>Locale</c>, <c>Draft(true)</c>, <c>Select</c>, <c>Populate</c>, <c>Trash(true)</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The <c>version</c> document.</returns>
-    public async Task<DocumentDTO> FindVersionById(string slug, string id, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> FindVersionById(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}";
+        var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}", query);
         var json = await Request(url, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = DocumentDTO.FromJson(json);
 
@@ -491,11 +494,12 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="id">The <c>version</c> ID to restore.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Depth</c>, <c>Locale</c>, <c>Draft(true)</c>, <c>Populate</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The restored document.</returns>
-    public async Task<DocumentDTO> RestoreVersion(string slug, string id, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> RestoreVersion(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}";
+        var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}", query);
         var method = HttpMethod.Post;
 
         var json = await Request(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
@@ -525,11 +529,12 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>global</c> slug.</param>
     /// <param name="id">The <c>version</c> ID.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Depth</c>, <c>Locale</c>, <c>Draft(true)</c>, <c>Select</c>, <c>Populate</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The <c>version</c> document.</returns>
-    public async Task<DocumentDTO> FindGlobalVersionById(string slug, string id, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> FindGlobalVersionById(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}";
+        var url = AppendQueryString($"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}", query);
         var json = await Request(url, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
         var dto = DocumentDTO.FromJson(json);
 
@@ -541,11 +546,12 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>global</c> slug.</param>
     /// <param name="id">The <c>version</c> ID to restore.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Depth</c>, <c>Locale</c>, <c>Draft(true)</c>, <c>Populate</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The restored document.</returns>
-    public async Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, CancellationToken cancellationToken = default)
+    public async Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, QueryBuilder? query = null, CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}";
+        var url = AppendQueryString($"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}/versions/{Uri.EscapeDataString(id)}", query);
         var method = HttpMethod.Post;
 
         var json = await Request(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();

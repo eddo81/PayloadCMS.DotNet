@@ -237,6 +237,24 @@ public class PayloadSDKTests
         Assert.Contains("/api/posts/abc123", handler.LastRequest.RequestUri!.ToString());
     }
 
+    [Fact]
+    public async Task DeleteById_WithTrashQuery_AppendsTrashParamToUrl()
+    {
+        // Permanently deleting an already soft-deleted document requires trash=true —
+        // without it, the server can't even find a trashed document by ID (404).
+        const string json = """
+            { "doc": { "id": "abc123", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var query = new QueryBuilder().Trash(true);
+        await sdk.DeleteById("posts", "abc123", query);
+
+        Assert.Equal(HttpMethod.Delete, handler.LastRequest!.Method);
+        Assert.Contains("/api/posts/abc123", handler.LastRequest.RequestUri!.ToString());
+        Assert.Contains("trash=true", handler.LastRequest.RequestUri!.Query);
+    }
+
     // ── Update (bulk) ───────────────────────────────────────────
 
     [Fact]
@@ -307,6 +325,21 @@ public class PayloadSDKTests
 
         Assert.Equal("g1", result.Id);
         Assert.Contains("/api/globals/site-settings", handler.LastRequest!.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task FindGlobal_WithQuery_AppendsParamsToUrl()
+    {
+        const string json = """
+            { "id": "g1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var query = new QueryBuilder().Depth(1).Locale("sv");
+        await sdk.FindGlobal("site-settings", query);
+
+        Assert.Contains("depth=1", handler.LastRequest!.RequestUri!.Query);
+        Assert.Contains("locale=sv", handler.LastRequest.RequestUri!.Query);
     }
 
     // ── UpdateGlobal ────────────────────────────────────────────
@@ -380,6 +413,20 @@ public class PayloadSDKTests
         Assert.Contains("/api/posts/versions/v1", handler.LastRequest!.RequestUri!.ToString());
     }
 
+    [Fact]
+    public async Task FindVersionById_WithTrashQuery_AppendsTrashParamToUrl()
+    {
+        const string json = """
+            { "id": "v1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var query = new QueryBuilder().Trash(true);
+        await sdk.FindVersionById("posts", "v1", query);
+
+        Assert.Contains("trash=true", handler.LastRequest!.RequestUri!.Query);
+    }
+
     // ── RestoreVersion ──────────────────────────────────────────
 
     [Fact]
@@ -395,6 +442,21 @@ public class PayloadSDKTests
         Assert.Equal("v1", result.Id);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Contains("/api/posts/versions/v1", handler.LastRequest.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task RestoreVersion_WithLocaleQuery_AppendsParamToUrl()
+    {
+        const string json = """
+            { "id": "v1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var query = new QueryBuilder().Locale("sv");
+        await sdk.RestoreVersion("posts", "v1", query);
+
+        Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
+        Assert.Contains("locale=sv", handler.LastRequest.RequestUri!.Query);
     }
 
     // ── FindGlobalVersions ──────────────────────────────────────
@@ -434,6 +496,20 @@ public class PayloadSDKTests
         Assert.Contains("/api/globals/site-settings/versions/gv1", handler.LastRequest!.RequestUri!.ToString());
     }
 
+    [Fact]
+    public async Task FindGlobalVersionById_WithDepthQuery_AppendsParamToUrl()
+    {
+        const string json = """
+            { "id": "gv1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var query = new QueryBuilder().Depth(2);
+        await sdk.FindGlobalVersionById("site-settings", "gv1", query);
+
+        Assert.Contains("depth=2", handler.LastRequest!.RequestUri!.Query);
+    }
+
     // ── RestoreGlobalVersion ────────────────────────────────────
 
     [Fact]
@@ -449,6 +525,21 @@ public class PayloadSDKTests
         Assert.Equal("gv1", result.Id);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Contains("/api/globals/site-settings/versions/gv1", handler.LastRequest.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task RestoreGlobalVersion_WithLocaleQuery_AppendsParamToUrl()
+    {
+        const string json = """
+            { "doc": { "id": "gv1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var query = new QueryBuilder().Locale("sv");
+        await sdk.RestoreGlobalVersion("site-settings", "gv1", query);
+
+        Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
+        Assert.Contains("locale=sv", handler.LastRequest.RequestUri!.Query);
     }
 
     // ── Login ───────────────────────────────────────────────────
