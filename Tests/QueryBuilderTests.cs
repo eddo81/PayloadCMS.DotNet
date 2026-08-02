@@ -1,4 +1,5 @@
 ﻿using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Extensions;
 using PayloadCMS.DotNet.Query;
 
 namespace Payload.CMS.Tests;
@@ -106,6 +107,43 @@ public class QueryBuilderTests
         var actual = _encoder.Stringify(params_);
 
         Assert.Equal("trash=true", actual);
+    }
+
+    [Fact]
+    public void AutosaveShouldSerializeAsLowercaseBoolean()
+    {
+        var params_ = new QueryBuilder()
+            .Autosave(true)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("autosave=true", actual);
+    }
+
+    [Fact]
+    public void AddCustomParamShouldSerializeArbitraryKeyValue()
+    {
+        var params_ = new QueryBuilder()
+            .AddCustomParam("myParam", "myValue")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("myParam=myValue", actual);
+    }
+
+    [Fact]
+    public void AddCustomParamShouldOverrideBuiltInOnCollision()
+    {
+        var params_ = new QueryBuilder()
+            .Limit(5)
+            .AddCustomParam("limit", 10)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("limit=10", actual);
     }
 
     [Fact]

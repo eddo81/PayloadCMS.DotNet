@@ -25,9 +25,8 @@ internal class FormDataBuilder
 
         formData.Add(name: "file", content: fileContent, fileName: file.FileName);
 
-        // Plain string part — mirrors TS formData.append('_payload', JSON.stringify(data)).
-        // JsonContent would stamp the part with Content-Type: application/json, which some
-        // multipart parsers treat as a file rather than a string field.
+        // Plain string part, not JsonContent — JsonContent stamps Content-Type: application/json,
+        // which some multipart parsers treat as a file rather than a string field.
         formData.Add(name: "_payload", content: new StringContent(JsonSerializer.Serialize(data)));
 
         return formData;

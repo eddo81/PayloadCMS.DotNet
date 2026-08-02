@@ -247,7 +247,7 @@ DocumentDTO document = await client.UpdateById("posts", "123", new Dictionary<st
 
 #### Draft writes
 
-On collections with drafts enabled (`versions: { drafts: true }`), pass `Draft(true)` to save the
+`Draft` requires `using PayloadCMS.DotNet.Extensions;` — see [Custom query parameters](#custom-query-parameters) for why. On collections with drafts enabled (`versions: { drafts: true }`), pass `Draft(true)` to save the
 change as a draft version without touching the published document. Reading the draft back requires
 `Draft(true)` on the read as well:
 
@@ -270,6 +270,20 @@ await client.UpdateById("posts", "123", new Dictionary<string, object?>
     ["_status"] = "published",
 });
 ```
+
+#### Understanding `Draft()`
+
+`Draft()` is a **version selector, not a resultset filter** — it changes which *version* of a
+document's content you see, not which documents come back. `Draft(false)` (or omitting it)
+resolves to a document's **last published version**; `Draft(true)` resolves to its **most recent
+version, published or not**:
+
+```csharp
+DocumentDTO published = await client.FindById("posts", "123");
+DocumentDTO draft = await client.FindById("posts", "123", new QueryBuilder().Draft(true));
+```
+
+See [PROJECT_GUIDELINES.md §5.7](PROJECT_GUIDELINES.md#57-payload-query-parameter-semantics-draft--trash--pagination) for the full behavior model and a worked example.
 
 ### Bulk update
 
@@ -320,24 +334,16 @@ DocumentDTO document = await client.DeleteById("posts", "123");
 
 #### Permanently deleting a trashed document
 
-On collections with `trash: true`, a soft-deleted document is invisible to a plain `DeleteById` —
-the server can't even find it by ID without `Trash(true)`, since the same hidden
-`deletedAt IS NULL` filter that hides trashed documents from reads also applies to deletes:
+`Trash` requires `using PayloadCMS.DotNet.Extensions;` — see [Custom query parameters](#custom-query-parameters) for why. On collections with `trash: true`, a soft-deleted document needs `Trash(true)` on `DeleteById` to
+be found and permanently removed — a plain `DeleteById` 404s on it:
 
 ```csharp
-// Soft-delete (trash) — a plain field write, no special flag needed
-await client.UpdateById("posts", "123", new Dictionary<string, object?> { ["deletedAt"] = DateTime.UtcNow });
-
-// Without Trash(true), the server can't find the trashed document — this 404s
-await client.DeleteById("posts", "123");
-
-// Trash(true) lifts the hidden filter so the delete can find and permanently remove it
 await client.DeleteById("posts", "123", new QueryBuilder().Trash(true));
 ```
 
 `Trash(true)` is inclusive, not exclusive-to-trash — combining it with a broad `where` clause on
-the bulk `Delete` method (e.g. `Where("id", Operator.Exists, true)`) matches *every* document,
-trashed and normal alike. Scope bulk deletes carefully once trash is enabled.
+the bulk `Delete` method matches *every* document, trashed and normal alike. Scope bulk deletes
+carefully once trash is enabled. See [PROJECT_GUIDELINES.md §5.7](PROJECT_GUIDELINES.md#57-payload-query-parameter-semantics-draft--trash--pagination) for the underlying mechanics.
 
 ### Bulk delete
 
@@ -750,8 +756,6 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `Sort` | `string field` | Sort ascending by field. |
 | `SortByDescending` | `string field` | Sort descending by field. |
 | `Depth` | `int value` | Population depth for relationships. |
-| `Draft` | `bool value` | Overlay latest draft content on reads; save as draft on writes. NOT a visibility filter — filter `_status` for that. |
-| `Trash` | `bool value` | Include soft-deleted documents (collections with trash enabled). |
 | `Locale` | `string value` | Locale for localized fields. |
 | `FallbackLocale` | `string value` | Fallback locale. |
 | `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
@@ -761,6 +765,43 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `And` | `Action<WhereBuilder> callback` | Nested AND group. |
 | `Or` | `Action<WhereBuilder> callback` | Nested OR group. |
 | `Join` | `Action<JoinBuilder> callback` | Configure joins. |
+
+### Custom query parameters
+
+`AddCustomParam`, and the `Draft`/`Trash`/`Autosave` methods built on it, live in a separate
+namespace and require an explicit import:
+
+```csharp
+using PayloadCMS.DotNet.Extensions;
+```
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `AddCustomParam` | `string key, object? value` | Registers an arbitrary query-string parameter. The primitive `Draft`/`Trash`/`Autosave` are built on — use this directly for parameters introduced by a Payload plugin or custom server config. |
+| `Draft` | `bool value` | Overlay latest draft content on reads; save as draft on writes. NOT a visibility filter — filter `_status` for that. |
+| `Trash` | `bool value` | Include soft-deleted documents (collections with trash enabled). |
+| `Autosave` | `bool value` | Marks a write as an autosave. Only meaningful on collections with `versions.drafts.autosave` configured. |
+
+```csharp
+var query = new QueryBuilder()
+    .Draft(true)
+    .AddCustomParam("myPluginParam", "value");
+```
+
+> **Why the separate import.** `Draft`/`Trash`/`Autosave` are opt-in Payload features per
+> collection — this library has no way to know whether a given collection has them configured.
+> Using them against a collection without the corresponding feature configured **silently no-ops
+> on reads**, and **`Draft(true)` on a write can silently commit straight to the live document** —
+> no error, no signal. Requiring the client to deliberately import this namespace mirrors the
+> deliberate server-side configuration these features require — but it's a discoverability nudge,
+> not enforcement; nothing stops a determined caller from reaching the same effect another way.
+> See [PROJECT_GUIDELINES.md §5.7](PROJECT_GUIDELINES.md#57-payload-query-parameter-semantics-draft--trash--pagination) for the full design rationale and a consumer-side mitigation pattern.
+
+Third-party or plugin-specific functionality generally doesn't need anything beyond what's already
+here: a plugin that adds new collections or fields needs no SDK changes at all (`Find`/`Create`/etc.
+already take a plain `string` slug, and `DocumentDTO.Json` already exposes arbitrary fields); a
+plugin's custom REST endpoints are reachable via [`Request()`](#custom-endpoints); a plugin's
+custom query parameter is reachable via `AddCustomParam` above.
 
 ### SelectBuilder
 
@@ -800,15 +841,8 @@ var query = new QueryBuilder()
 > *other* documents embedded into it. `Depth` decides whether those other documents get
 > embedded at all.**
 
-`Populate` narrows which fields **populated related documents** contain — it is `Select` applied
-one hop across a relationship. It applies only at document boundaries: `relationship` and
-`upload` fields resolved by `Depth`. Nested structures *within* a document (`group`, `array`,
-`blocks`) are `Select`'s domain, and the `collection` argument is the target field's `relationTo`
-slug from your Payload config — not the field name. It does *not* choose which relationships resolve into objects
-(that is `Depth`'s job) and has no effect at `Depth(0)`. It is keyed by the **target collection
-slug**, not the field name, so polymorphic relationships are masked consistently, and it
-**overrides** the target collection's `defaultPopulate` config (no merging). Payload always
-includes `id` on populated docs.
+The `collection` argument is the target field's `relationTo` slug from your Payload config, not
+the field name. `Populate` has no effect at `Depth(0)`.
 
 ```csharp
 // Posts with their author resolved, but only the author's name (+ id)
@@ -821,16 +855,7 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 // Serializes to: ?depth=1&populate[users][name]=true
 ```
 
-Repeated calls for the same collection merge additively, and dot notation targets nested fields:
-
-```csharp
-var query = new QueryBuilder()
-    .Depth(1)
-    .Populate("users", new[] { "name" })
-    .Populate("users", new[] { "group.number" });
-
-// Serializes to: ?depth=1&populate[users][name]=true&populate[users][group][number]=true
-```
+See [PROJECT_GUIDELINES.md §5.6](PROJECT_GUIDELINES.md#56-payload-query-parameter-semantics-where--select--depth--populate) for the full `where`/`select`/`depth`/`populate` semantics, including polymorphic keying and `defaultPopulate` override behavior.
 
 ### WhereBuilder
 
@@ -1194,3 +1219,8 @@ public enum Operator
     Near,
 }
 ```
+
+> **Known limitation — `Exists` on the `id` field.** `Where("id", Operator.Exists, ...)` always
+> returns zero results, regardless of `true` or `false`. This is a Payload/MongoDB-adapter
+> limitation, not a bug in this library — every other field works correctly with `Exists`. See
+> [PROJECT_GUIDELINES.md §5.2](PROJECT_GUIDELINES.md#52-wherebuilder) for the root cause.

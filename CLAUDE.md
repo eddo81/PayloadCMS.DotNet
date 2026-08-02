@@ -45,6 +45,11 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - **No `or` pattern syntax** — use `||` for multi-type checks to match TS structure
 - **Structural parity with TypeScript** — treat the TS files as the style authority; if a variable name exists in TS, use the same name in C#; do not invent names that have no TS equivalent
 - **DTO field access** — use `ContainsKey` + direct indexer (`data["field"]`) to mirror TypeScript's `data['field']` direct access; avoid `TryGetValue` which forces an invented `out var` name. Exception: DateTime fields where `TryParse` requires an `out` parameter — use a field-derived name (`createdAtDate`, `updatedAtDate`)
+- **Comment/XML doc scope** (2026-07-30) — source comments and XML docs describe consumer-facing
+  behavior only. No implementation rationale, decision history, or cross-port comparisons
+  ("mirrors TS...") in the library source — that belongs in `PROJECT_GUIDELINES.md`. Same rule for
+  `README.md`: public API + usage examples only, no Payload-core internals tutorial (link to
+  official docs or `PROJECT_GUIDELINES.md` instead) and no design-rationale content.
 
 ## Key Conventions
 - `internal` for everything under `lib/internal/` (contracts, clauses, utils, upload)
@@ -80,7 +85,8 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
-- xUnit v3 test suite — 108 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- `QueryBuilderExtensions` — `AddCustomParam`, `Draft`, `Trash`, `Autosave` in `Public/Extensions/`, namespace `PayloadCMS.DotNet.Extensions` (opt-in import, deliberately not members of `QueryBuilder` itself — see CLAUDE.md's "Extensibility" backlog closure and `PROJECT_GUIDELINES.md` §5.8)
+- xUnit v3 test suite — 111 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -197,6 +203,25 @@ against an already-trashed doc, since the same hidden filter excludes it from be
 `TYPESCRIPT_BACKPORT.md` §12. The Draft/Trash capability-gating question above remains open and
 unrelated to this fix — this was a concrete missing-parameter bug, not the parked design question.
 
+**RESOLVED (2026-07-30) — capability gating via opt-in import, option (1)+(2) plus a new mechanism
+not on the table when parked:** `Draft`/`Trash` (and newly-added `Autosave`, see the extensibility
+work logged under the "Extensibility / plugin support primitives" backlog item) are no longer
+members of `QueryBuilder` itself. They now live as extension methods in the new
+`Public/Extensions/QueryBuilderExtensions.cs`, namespace `PayloadCMS.DotNet.Extensions`, built on a
+new general-purpose `AddCustomParam(string key, object? value)` primitive — requiring an explicit
+`using PayloadCMS.DotNet.Extensions;` before any of the four become callable at all. This is a
+genuinely different option than the three considered in 2026-07-09 (doc-only, consumer-side
+`_status` check, explicit capability declaration): it needs no remote-schema knowledge and has no
+staleness risk, because it isn't tracking server config at all — it's a deliberate second step on
+the *client*, mirroring the deliberate step already required on the *server*. Explicitly a
+discoverability nudge, not enforcement (documented as such in `PROJECT_GUIDELINES.md` §5.7/§5.8 and
+`README.md`) — nothing stops a determined caller from reaching the same effect another way. Options
+(1) and (2) from the 2026-07-09 note are still both in place alongside this (the doc warnings and
+the `_status`-check pattern). See `PROJECT_GUIDELINES.md` §5.8 for the full design writeup,
+including the plugin-extensibility investigation that led here (five official Payload plugins'
+source checked; none add custom query params, but `Draft`/`Trash`/`Autosave` themselves turned out
+to be a concrete case for the exact same mechanism).
+
 **FULL RE-AUDIT (2026-07-29)** — the `DeleteById` gap prompted a complete method-by-method,
 parameter-by-parameter re-verification against the literal source of `packages/sdk/src` in
 `payloadcms/payload` (fetched raw, not summarized), after the user correctly pointed out the
@@ -216,13 +241,12 @@ Findings:
   wired identically to `draft`/`trash`, not Local-API-only despite the docs' REST example only
   showing `limit`/`page`. `autosave` deliberately **not** added — traced the same source and found
   the official SDK's own `buildSearchParams` never reads it at all, so it's inert in the reference
-  implementation itself, not just under-documented. Live verification of `Pagination` against the
-  real REST response (does `pagination=false` ignore `limit`, or only skip the count query?) is
-  still pending — see the CmsProject lab plan.
-- **`disableErrors` has no equivalent** on `findById`/`findVersionById`/`findGlobalVersionById` —
-  official SDK can swallow a 404 and return `null`; ours always throws. Not a query-string param,
-  so not a `QueryBuilder` fix — would need an overload or nullable-return design. Flagged as an
-  open design question, not yet proposed as a concrete fix. See `TYPESCRIPT_BACKPORT.md` §14.
+  implementation itself, not just under-documented. **Live-verified 2026-07-29** via the
+  `QueryPagination` lab page against 3 real seeded posts: `Pagination(false)` with no limit
+  returned all 3 (matching `Count()`); `Pagination(false).Limit(1)` still capped to 1; `TotalDocs`
+  stayed accurate in both cases. Both documented behaviors confirmed working exactly as claimed.
+- **`disableErrors` has no equivalent** on `findById`/`findVersionById`/`findGlobalVersionById`.
+  **Decided 2026-07-30: not implementing — see "Accepted (no action)" below.**
 
 Everything else (`Find`, `FindById`, `Create`, `Delete`/`DeleteById`, `Update`/`UpdateById`,
 `Count`, `UpdateGlobal`, all six auth methods) verified to already cover their full official
@@ -271,7 +295,87 @@ mirroring bulk `Update`), so `Draft(true)`/`Locale` work on writes. Three unit t
 `draft=true` reaches the URL. Source-breaking for positional `file` callers — use `file:` named
 argument. TS backport pending — see `TYPESCRIPT_BACKPORT.md` §11 for the exact change table.
 
+**`Draft()` mental model — user-confirmed live 2026-07-30, via SDK Lab B6:** `Draft()` is a
+**version selector, not a resultset filter** — it never adds or removes documents from a `Find`.
+Unlike `Trash`, there is no hidden default filter on `_status`; whether draft documents appear in
+results at all is controlled purely by access control (`Posts.ts` has `read: () => true`, fully
+open) or an explicit `where` on `_status`. What `Draft()` actually toggles, per document: `false`/
+omitted returns the **last published version**; `true` returns the **most recent version, published
+or not**. Confirmed end-to-end by the user directly in the CMS admin: published a post with content
+"I am published", unpublished it, edited the draft to "I am NOT published", then queried that same
+post by id — `Draft(false)` returned the old published content, `Draft(true)` returned the new draft
+content, `_status` differed between the two reads accordingly. For a document that has never been
+published (created straight into `_status: draft`), there's no published version to diverge from, so
+`Draft(true)`/`Draft(false)` return identical content for it — confirmed via the 10 leftover test
+posts (titled "4"–"12") accumulated in `posts` from earlier sessions, all `_status: draft`, all
+returned by a plain `Find` with no `Draft()` call at all (12 total docs, 10 draft + 2 published).
+Open, not yet actioned: the method name reads as "include drafts" (filter-shaped), which repeatedly
+led to the wrong mental model before this session's B6 lab made the version-selector behavior
+visible side-by-side. No rename proposed yet — flagging as a documentation/naming discomfort to
+revisit, not a decided change.
+
 ### Accepted (no action)
+- **SDK consumer-ergonomics audit: no SDK changes** (added and closed 2026-07-30, purely
+  exploratory per user request). Read all 8 files in CmsProject's `Payload/` folder. Five are
+  genuinely app-specific and cannot generalize: `PayloadCookieEvents`/`ClaimsExtensions` (wire
+  `RefreshToken`/`SetJwtAuth` into ASP.NET Core's cookie-auth pipeline — the library deliberately
+  takes no framework auth dependency), `UserModel` (app-defined `users`-collection schema — this
+  *is* the intended "write your own domain model" pattern from the README's DTOs section),
+  `PayloadExceptionFilter` and `AddToModelState` (ASP.NET Core MVC-specific types). Two
+  (`LastRequestUrlCapture`/`Handler`) are this session's own SDK Lab diagnostics, not standard-
+  consumption boilerplate — the underlying need (inspect outgoing requests) is already covered by
+  the SDK's "bring your own `HttpClient`" design via `AddPayloadSDK`'s `configureClient` callback.
+  Three candidates looked promising on the surface (all zero-dependency, all already
+  README-documented patterns) but each failed review on its own merits, not on cost:
+  - **`DocumentDTO.As<T>()`** — rejected. Real bug report from the user: a relationship field's
+    JSON shape depends on `Depth` at query time (bare id string at `Depth(0)`, full nested object
+    at `Depth(1)+`), so one fixed C# type cannot represent both — `JsonSerializer.Deserialize<T>`
+    throws when they mismatch. Shipping this as blessed official API would encode that footgun as
+    a documented pattern for every consumer instead of something one app hit once. A safer
+    "shape-union" version (e.g. a `RelationshipValue<T>` with a custom JSON converter) is a real
+    idea but a much bigger lift than an ergonomics win justifies — not pursued.
+  - **`ValidationError`/`ValidationFieldError`** — rejected. Shipping a modeled type here would
+    reverse the library's own stated, documented design stance (README: "Payload's error shape is
+    intentionally dynamic... the library does not model this automatically"). Decided the
+    principle matters more than removing one common copy-paste block.
+  - **`PayloadError.ToDisplayMessage()`** — rejected. Survived the first two cuts (no dependency
+    cost, no design-principle conflict) but the user judged, correctly, that a single formatting
+    convenience wrapping a two-line LINQ join doesn't clear the bar for permanent public API
+    surface on its own.
+  Net conclusion: the current split between the SDK and CmsProject's `Payload/` folder is already
+  correct. Do not re-propose folding any of the above into the library without new information
+  (e.g. a `Depth`-safe relationship-shape design for `As<T>()`, or a second concrete pain point
+  that changes the cost/benefit for one of the others).
+- **`disableErrors` (on `findById`/`findVersionById`/`findGlobalVersionById`): not implementing**
+  (decision 2026-07-30, after full source-level investigation — do not re-propose without new
+  information). Traced to the literal source (`packages/sdk/src/collections/findByID.ts`,
+  `index.ts`'s `request()`, `utilities/buildSearchParams.ts`): it's real client-side behavior in
+  the official SDK, but not what its own doc comment claims — `request()` throws for *any* non-2xx
+  status, and `findByID`'s catch is unconditional (`if (options.disableErrors) return null`, no
+  status check), so it swallows 401s, 500s, network failures, and non-JSON bodies identically to a
+  genuine 404. Copying that verbatim would import a footgun; doing it correctly (404-scoped) means
+  diverging from the official semantics anyway, which weakens the case for adding it at all. C#
+  also already has an idiomatic equivalent with no new surface needed — catch `PayloadError` and
+  check `StatusCode == 404` — and TS's clean API here relies on conditional generic return-type
+  narrowing (`ApplyDisableErrors<T, TDisableErrors>`) that C# has no equivalent for; replicating it
+  would mean either a separate `TryFindById`-style method or a bolted-on bool that forces a
+  nullable return (and a null-check) on every caller. Net: real feature, flawed reference
+  implementation, no clean C# translation, existing idiom already covers the use case — not worth
+  the added surface. See `TYPESCRIPT_BACKPORT.md` §14 for the full source trace.
+- **`Where("id", Operator.Exists, ...)` always returns zero hits — upstream Payload/Mongo-adapter
+  limitation, not a client bug** (found 2026-07-30 via the B6 lab). Verified two ways: (1) the raw
+  query string our `QueryStringEncoder` produces (`where[id][exists]=true`) is exactly correct —
+  confirmed by sending that identical string with plain curl, bypassing the SDK entirely, and
+  getting the same 0-hit result for both `true` and `false`; (2) traced the actual cause in
+  `@payloadcms/db-mongodb/dist/queries/sanitizeQueryValue.js`. That file has a dedicated `path ===
+  '_id'` block that runs *before* the `operator === 'exists'` handling further down; it treats any
+  non-comma string value for `_id` as a candidate `ObjectId` and calls
+  `Types.ObjectId.isValid(val)` — `"true"`/`"false"` are never valid ObjectId strings, so it returns
+  `{ operator, val: undefined }` early, discarding the clause before the `exists`-specific branch
+  (which would otherwise build a correct compound `$exists`/`$ne null` query) is ever reached. This
+  happens identically regardless of the boolean value, which is exactly the observed symptom — not
+  fixable client-side; `exists` on `id`/`_id` is effectively non-functional on the Mongo adapter for
+  any REST/SDK client, official or not.
 - Custom `Content-Type` set via `SetHeaders()` is dropped in C# (HttpContent owns the header) —
   edge case with no Payload-relevant consequence; TS would honor it. Documented divergence.
 - `TryConvertInt` truncates `long`/`double` — mirrors loose JS number semantics; timestamps fit.
@@ -285,11 +389,44 @@ argument. TS backport pending — see `TYPESCRIPT_BACKPORT.md` §11 for the exac
   as class explosion contradicting §2.2 minimalism.
 
 ### Backlog
-- **Full documentation reconciliation pass, per port** (added 2026-07-09). The C# repo's
-  `PROJECT_GUIDELINES.md` has drifted from the code (stale §8/§9 status tables, file tree gaps
-  beyond the query section, missing `Models/Errors` entries); the TS repo's copy and `README.md`s
-  should be swept in the same pass. Verify every table/tree/checklist against the actual source
-  on both sides. Do this as its own focused task, not piecemeal.
+- **Full documentation reconciliation pass, per port** (added 2026-07-09). **C# side DONE
+  2026-07-30** — `README.md`, `PROJECT_GUIDELINES.md`, `LIBRARY.md` all reconciled against actual
+  source (file tree, DTO reference, implementation status table, test count) plus new content
+  distilled from this session's findings (`Draft()` mental model, `id`+`Exists` limitation,
+  capability-gating warning, new PROJECT_GUIDELINES §5.7). TS repo's copy and `README.md`
+  deliberately deferred — bundled with the eventual TS backport rather than done separately, per
+  user decision 2026-07-30 (TS work is on hold until the C# design settles).
+- **README scope tightening** (added 2026-07-30, user directive — nearing-completion pass).
+  **DONE 2026-07-30.** Rule: `README.md` documents the public API and usage only — no Payload-core
+  internals tutorial (link to official docs or `PROJECT_GUIDELINES.md` instead) and no library
+  design-rationale ("designer notes"). Five README sections trimmed down to usage-only + a pointer
+  to the corresponding `PROJECT_GUIDELINES.md` section (`Draft()`, trashed-document deletion, the
+  capability-gating warning, `Populate`, the `id`+`Exists` limitation — the last needed a new home
+  added to `PROJECT_GUIDELINES.md` §5.2 first, since it previously existed only in README/
+  `CLAUDE.md`). Source comment audit found the scope much smaller than expected — grepped every
+  plain `//` comment and every TS/backport/mirrors/parity mention across `Internal/`/`Public/`;
+  only two real offenders (`FormDataBuilder.cs`'s "mirrors TS" aside,
+  `RequestConfig.cs`'s cross-port XML doc `<para>`), both fixed. Legitimate bug-regression-
+  prevention comments (e.g. `QueryStringEncoder.cs`'s invariant-culture/lowercase-bool notes) were
+  kept — they explain a subtle runtime requirement, not a design decision with alternatives
+  considered. Rule codified going forward in `PROJECT_GUIDELINES.md` §4.1 and this file's Code
+  Style section.
+- **Extensibility / plugin support primitives** (added 2026-07-30). **DONE 2026-07-30.** Payload
+  core has official opt-in plugins (SEO, multi-tenant, ecommerce, search, redirects, etc.) and
+  supports fully custom ones. Investigated five official plugins' literal source — every one
+  extends the API three ways (new collections, new fields, custom REST endpoints), all three
+  already fully served by the SDK's existing `slug`-based methods and `Request()`; none add custom
+  query params, so a speculative param-registry mechanism for third parties was rejected. But the
+  same mechanism turned out to have a concrete, non-speculative use for the SDK's own
+  `Draft`/`Trash` (plus newly-added `Autosave`) — see the capability-gating resolution above and
+  `PROJECT_GUIDELINES.md` §5.8 for the full design and investigation writeup. Shipped:
+  `QueryBuilder.AddCustomParam(string key, object? value)` plus `Draft`/`Trash`/`Autosave`, all as
+  extension methods in the new `Public/Extensions/QueryBuilderExtensions.cs`
+  (`PayloadCMS.DotNet.Extensions`), gated behind `QueryBuilder._customParams` being `internal`
+  rather than a public instance member — one consistent opt-in-import gate for the whole
+  custom-param surface, not a public back door next to a locked door. `PayloadSDK`-side facade
+  question resolved as "not needed": `Request()` already covers arbitrary custom endpoints, and no
+  plugin's endpoint contract was generic enough to warrant a dedicated primitive beyond it.
 
 ### Integration-lab checklist (CmsProject)
 Exercises every risky finding: populate on a real relationship field · file upload · document fetch

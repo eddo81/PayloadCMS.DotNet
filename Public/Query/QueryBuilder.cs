@@ -15,14 +15,13 @@ public class QueryBuilder
     private bool? _pagination;
     private string? _sort;
     private int? _depth;
-    private bool? _draft;
-    private bool? _trash;
     private string? _locale;
     private string? _fallbackLocale;
     private readonly PopulateBuilder _populateBuilder = new PopulateBuilder();
     private readonly WhereBuilder _whereBuilder = new WhereBuilder();
     private readonly SelectBuilder _selectBuilder = new SelectBuilder();
     private readonly JoinBuilder _joinBuilder = new JoinBuilder();
+    internal readonly Dictionary<string, object?> _customParams = new();
 
     /// <summary>
     /// Limits the number of documents returned.
@@ -52,7 +51,7 @@ public class QueryBuilder
     /// Toggles pagination. <c>Pagination(false)</c> returns every matching document and skips
     /// the extra <c>totalDocs</c>/<c>totalPages</c> count query — a real REST parameter, verified
     /// against Payload's own SDK source (<c>buildSearchParams</c> treats it identically to
-    /// <see cref="Draft"/>/<see cref="Trash"/>), not just a Local API convenience despite the
+    /// <c>draft</c>/<c>trash</c>), not just a Local API convenience despite the
     /// official docs' REST example only demonstrating <see cref="Limit"/>/<see cref="Page"/>.
     /// <para>Combine with <see cref="Limit"/> to still cap the result count while skipping the
     /// count query.</para>
@@ -107,37 +106,6 @@ public class QueryBuilder
     public QueryBuilder Depth(int value)
     {
         _depth = value;
-
-        return this;
-    }
-
-    /// <summary>
-    /// Overlays the latest draft version of each returned document (<c>draft=true</c>).
-    /// <para>This is NOT a visibility filter — a plain find already returns documents
-    /// of every <c>_status</c>; filter on <c>_status</c> to control which documents
-    /// come back. What <c>draft=true</c> changes is the content: published documents
-    /// with a newer pending draft are returned with the draft's content instead.</para>
-    /// <para>On writes, saves the change as a draft version without touching the
-    /// published document. Requires drafts enabled on the collection/global.</para>
-    /// </summary>
-    /// <param name="value"><c>true</c> to read draft overlays / write draft versions.</param>
-    /// <returns>The current builder for chaining.</returns>
-    public QueryBuilder Draft(bool value)
-    {
-        _draft = value;
-
-        return this;
-    }
-
-    /// <summary>
-    /// Includes soft-deleted (<c>trash</c>) documents in the query.
-    /// <para>Only meaningful on collections with <c>trash</c> enabled (Payload v3).</para>
-    /// </summary>
-    /// <param name="value"><c>true</c> to include soft-deleted documents.</param>
-    /// <returns>The current builder for chaining.</returns>
-    public QueryBuilder Trash(bool value)
-    {
-        _trash = value;
 
         return this;
     }
@@ -307,16 +275,6 @@ public class QueryBuilder
             result["depth"] = _depth;
         }
 
-        if (_draft != null)
-        {
-            result["draft"] = _draft;
-        }
-
-        if (_trash != null)
-        {
-            result["trash"] = _trash;
-        }
-
         if (_locale != null)
         {
             result["locale"] = _locale;
@@ -354,6 +312,11 @@ public class QueryBuilder
             {
                 result["joins"] = joins;
             }
+        }
+
+        foreach (var customParam in _customParams)
+        {
+            result[customParam.Key] = customParam.Value;
         }
 
         return result;
