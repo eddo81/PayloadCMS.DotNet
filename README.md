@@ -1,13 +1,13 @@
-# Payload CMS HTTP Client
+# Payload CMS .NET SDK
 
-A lightweight HTTP client for the [Payload CMS](https://payloadcms.com/) REST API. Built in C# (.NET 8.0+) as part of a cross-language port alongside TypeScript and Dart implementations.
+A lightweight, strongly typed C# SDK for interacting with the [Payload CMS](https://payloadcms.com/) REST API. This library handles HTTP communication, authentication, query construction, and response parsing. Requires .NET 8.0 or later. 
+
+## Features
 
 - Typed methods for collections, globals, auth, and versions
 - Fluent query builder with where clauses, joins, sorting, and pagination
 - File upload support via multipart form data
 - API key and JWT authentication
-- Custom endpoint escape hatch via `Request()`
-- Optional ASP.NET Core DI integration via `AddPayloadSDK()`
 
 ## Installation
 
@@ -23,8 +23,6 @@ using PayloadCMS.DotNet;
 var httpClient = new System.Net.Http.HttpClient();
 var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
 ```
-
-> **Note:** `PayloadSDK` requires an externally managed `System.Net.Http.HttpClient` instance. The caller is responsible for its lifetime and disposal. In ASP.NET Core applications, use `IHttpClientFactory` or the `AddPayloadSDK()` DI extension.
 
 ### ASP.NET Core DI
 
@@ -87,8 +85,6 @@ Clears the current authentication credential. Subsequent requests are sent witho
 void ClearAuth()
 ```
 
----
-
 ## Collections
 
 ### Find documents
@@ -107,7 +103,7 @@ Task<PaginatedDocsDTO> Find(string slug, QueryBuilder? query = null, Cancellatio
 
 #### Example
 ```csharp
-PaginatedDocsDTO result = await client.Find("posts");
+PaginatedDocsDTO result = await sdk.Find("posts");
 
 // result.Docs        — List<DocumentDTO>
 // result.TotalDocs   — 42
@@ -135,7 +131,7 @@ Task<DocumentDTO> FindById(string slug, string id, QueryBuilder? query = null, C
 
 #### Example
 ```csharp
-DocumentDTO document = await client.FindById("posts", "123");
+DocumentDTO document = await sdk.FindById("posts", "123");
 
 // document.Id        — "123"
 // document.Json      — Dictionary<string, object?> with full payload
@@ -159,7 +155,7 @@ Task<int> Count(string slug, QueryBuilder? query = null, CancellationToken cance
 
 #### Example
 ```csharp
-int total = await client.Count("posts");
+int total = await sdk.Count("posts");
 
 // total — 42
 ```
@@ -176,23 +172,27 @@ Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, QueryBui
 |-----------|------|-------------|
 | `slug` | `string` | Collection slug. |
 | `data` | `Dictionary<string, object?>` | Document data. |
-| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Draft(true)` to create as a draft, or `Locale`. |
+| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Locale`, `Depth`, `Limit` etc. |
 | `file` | `FileUpload?` | Optional file to upload (for upload-enabled collections). |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
 #### Example
 ```csharp
-DocumentDTO document = await client.Create("posts", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["title"] = "Hello World",
     ["content"] = "My first post.",
-});
+};
+
+DocumentDTO document = await sdk.Create("posts", data);
 
 // document.Id   — "abc123"
 // document.Json — Dictionary containing id, title, content, etc.
 ```
 
 #### File Uploads
+
+// Add description
 
 ```csharp
 new FileUpload(byte[] content, string fileName, string? mimeType = null)
@@ -214,10 +214,12 @@ var file = new FileUpload(
     mimeType: "image/png"
 );
 
-DocumentDTO document = await client.Create("media", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["alt"] = "My image",
-}, file: file);
+};
+
+DocumentDTO document = await sdk.Create("media", data, file: file);
 ```
 
 ### Update by ID
@@ -239,51 +241,13 @@ Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?>
 
 #### Example
 ```csharp
-DocumentDTO document = await client.UpdateById("posts", "123", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["title"] = "Updated Title",
-});
+};
+
+DocumentDTO document = await sdk.UpdateById("posts", "123", data);
 ```
-
-#### Draft writes
-
-`Draft` requires `using PayloadCMS.DotNet.Extensions;` — see [Custom query parameters](#custom-query-parameters) for why. On collections with drafts enabled (`versions: { drafts: true }`), pass `Draft(true)` to save the
-change as a draft version without touching the published document. Reading the draft back requires
-`Draft(true)` on the read as well:
-
-```csharp
-var draftQuery = new QueryBuilder().Draft(true);
-
-// Save a draft edit — the published document is unchanged
-await client.UpdateById("posts", "123", new Dictionary<string, object?>
-{
-    ["title"] = "Work-in-progress title",
-}, draftQuery);
-
-// Plain read → published content; Draft(true) read → the draft overlay
-DocumentDTO published = await client.FindById("posts", "123");
-DocumentDTO draft = await client.FindById("posts", "123", new QueryBuilder().Draft(true));
-
-// Publish the draft
-await client.UpdateById("posts", "123", new Dictionary<string, object?>
-{
-    ["_status"] = "published",
-});
-```
-
-#### Understanding `Draft()`
-
-`Draft()` is a **version selector, not a resultset filter** — it changes which *version* of a
-document's content you see, not which documents come back. `Draft(false)` (or omitting it)
-resolves to a document's **last published version**; `Draft(true)` resolves to its **most recent
-version, published or not**:
-
-```csharp
-DocumentDTO published = await client.FindById("posts", "123");
-DocumentDTO draft = await client.FindById("posts", "123", new QueryBuilder().Draft(true));
-```
-
-See [PROJECT_GUIDELINES.md §5.7](PROJECT_GUIDELINES.md#57-payload-query-parameter-semantics-draft--trash--pagination) for the full behavior model and a worked example.
 
 ### Bulk update
 
@@ -304,12 +268,14 @@ Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, Que
 #### Example
 ```csharp
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "draft");
+    .Where("id", Operator.Equals, "123");
 
-BulkOperationDTO result = await client.Update("posts", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
-    ["status"] = "published",
-}, query);
+    ["title"] = "New title",
+};
+
+BulkOperationDTO result = await sdk.Update("posts", data, query);
 ```
 
 ### Delete by ID
@@ -329,21 +295,8 @@ Task<DocumentDTO> DeleteById(string slug, string id, QueryBuilder? query = null,
 
 #### Example
 ```csharp
-DocumentDTO document = await client.DeleteById("posts", "123");
+DocumentDTO document = await sdk.DeleteById("posts", "123");
 ```
-
-#### Permanently deleting a trashed document
-
-`Trash` requires `using PayloadCMS.DotNet.Extensions;` — see [Custom query parameters](#custom-query-parameters) for why. On collections with `trash: true`, a soft-deleted document needs `Trash(true)` on `DeleteById` to
-be found and permanently removed — a plain `DeleteById` 404s on it:
-
-```csharp
-await client.DeleteById("posts", "123", new QueryBuilder().Trash(true));
-```
-
-`Trash(true)` is inclusive, not exclusive-to-trash — combining it with a broad `where` clause on
-the bulk `Delete` method matches *every* document, trashed and normal alike. Scope bulk deletes
-carefully once trash is enabled. See [PROJECT_GUIDELINES.md §5.7](PROJECT_GUIDELINES.md#57-payload-query-parameter-semantics-draft--trash--pagination) for the underlying mechanics.
 
 ### Bulk delete
 
@@ -364,10 +317,112 @@ Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken
 var query = new QueryBuilder()
     .Where("status", Operator.Equals, "archived");
 
-BulkOperationDTO result = await client.Delete("posts", query);
+BulkOperationDTO result = await sdk.Delete("posts", query);
 ```
 
----
+## Draft, Trash & Autosave
+
+`Draft`, `Trash`, and `Autosave` correspond to optional Payload features. Because these features are configured per collection, the SDK cannot determine whether they are enabled on the collection you're working with.
+
+The three methods are available through PayloadCMS.DotNet.Extensions:
+
+```csharp
+using PayloadCMS.DotNet.Extensions;
+```
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| Draft	| bool value	| Selects the draft version on reads and saves changes as a draft on writes.
+| Trash	| bool value	| Includes soft-deleted documents in the operation.
+| Autosave	| bool value	| Marks a write as an autosave.
+
+> **Note:** These methods depend on the corresponding feature being enabled in Payload. The SDK does not validate the collection configuration, so using a method where the feature is not enabled may have no effect. In particular, Draft(true) on a collection without drafts enabled does not cause an error and may result in a normal write.
+
+### Draft
+
+`Draft()` controls which version of a document is used. It is not a **visibility filter**.
+
+`Draft(false)` (or omitting `Draft()`) uses the latest published version, while `Draft(true)` uses the most recent version, including unpublished changes.
+
+On writes, `Draft(true)` saves the change as a draft without changing the published version. The same option can be used with both reads and writes.
+
+#### Example
+```csharp
+// Save an edit as a draft — the published document is unchanged
+var query = new QueryBuilder().Draft(true);
+
+var data = new Dictionary<string, object?>
+{
+    ["title"] = "Work-in-progress title",
+};
+
+await sdk.UpdateById("posts", "123", data, query);
+```
+
+```csharp
+// Read the published version
+DocumentDTO published = await sdk.FindById("posts", "123");
+```
+
+```csharp
+// Read the latest version, including the draft
+var query = new QueryBuilder().Draft(true);
+
+DocumentDTO draft = await sdk.FindById("posts", "123", query);
+```
+
+```csharp
+// Publish the draft
+var data = new Dictionary<string, object?>
+{
+    ["_status"] = "published"
+};
+
+await sdk.UpdateById("posts", "123", data);
+```
+
+If you need to filter documents by their publication status, use a `where` condition on `_status` rather than `Draft()`.
+
+### Trash
+
+`Trash(true)` includes soft-deleted documents in an operation. It does **not** perform the soft-delete itself. To soft-delete a document, update its `deletedAt` field.
+
+#### Example
+```csharp
+var data = new Dictionary<string, object?>
+{
+    ["deletedAt"] = DateTime.UtcNow
+};
+
+await sdk.UpdateById("posts", "123", data);
+```
+
+Once a document has been soft-deleted, `Trash(true)` is required when retrieving or deleting it.
+
+#### Example
+```csharp
+var query = new QueryBuilder().Trash(true);
+
+await sdk.DeleteById("posts", "123", query);
+```
+
+When performing bulk operations, take care when combining `Trash(true)` with broad `where` conditions: both trashed and non-trashed documents may be included.
+
+### Autosave
+
+`Autosave(true)` marks a write as an autosave. It is only meaningful when Payload's autosave functionality is enabled for the collection.
+
+#### Example
+```csharp
+var query = new QueryBuilder().Autosave(true);
+
+var data = new Dictionary<string, object?>
+{
+    ["title"] = "Work-in-progress title"
+};
+
+await sdk.UpdateById("posts", "123", data, query);
+```
 
 ## Globals
 
@@ -381,14 +436,16 @@ Task<DocumentDTO> FindGlobal(string slug, QueryBuilder? query = null, Cancellati
 
 #### Example
 ```csharp
-DocumentDTO document = await client.FindGlobal("site-settings");
-DocumentDTO localized = await client.FindGlobal("site-settings", new QueryBuilder().Depth(1).Locale("sv"));
+DocumentDTO document = await sdk.FindGlobal("site-settings");
+
+var query = new QueryBuilder().Depth(1).Locale("sv");
+
+DocumentDTO localized = await sdk.FindGlobal("site-settings", query);
 ```
 
 ### Update global
 
-Updates a global document. Pass `Draft(true)` via `query` to save as a draft (globals with
-versions + drafts enabled).
+Updates a global document.
 
 ```csharp
 Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, QueryBuilder? query = null, CancellationToken cancellationToken = default)
@@ -396,13 +453,13 @@ Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, Qu
 
 #### Example
 ```csharp
-DocumentDTO document = await client.UpdateGlobal("site-settings", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["siteName"] = "My Site",
-});
-```
+};
 
----
+DocumentDTO document = await sdk.UpdateGlobal("site-settings", data);
+```
 
 ## Authentication
 
@@ -422,11 +479,13 @@ Task<LoginResultDTO> Login(string slug, Dictionary<string, object?> data, Cancel
 
 #### Example
 ```csharp
-LoginResultDTO result = await client.Login("users", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
     ["password"] = "secret",
-});
+};
+
+LoginResultDTO result = await sdk.Login("users", data);
 
 // result.Token   — "eyJhbGciOi..."
 // result.Exp     — 1700000000
@@ -444,7 +503,7 @@ Task<MeResultDTO> Me(string slug, CancellationToken cancellationToken = default)
 
 #### Example
 ```csharp
-MeResultDTO me = await client.Me("users");
+MeResultDTO me = await sdk.Me("users");
 
 // me.User       — DocumentDTO
 // me.Token      — "eyJhbGciOi..."
@@ -463,7 +522,7 @@ Task<RefreshResultDTO> RefreshToken(string slug, CancellationToken cancellationT
 
 #### Example
 ```csharp
-RefreshResultDTO result = await client.RefreshToken("users");
+RefreshResultDTO result = await sdk.RefreshToken("users");
 
 // result.RefreshedToken — "eyJhbGciOi..."
 // result.Exp            — 1700003600
@@ -480,10 +539,12 @@ Task<MessageDTO> ForgotPassword(string slug, Dictionary<string, object?> data, C
 
 #### Example
 ```csharp
-MessageDTO result = await client.ForgotPassword("users", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
-});
+};
+
+MessageDTO result = await sdk.ForgotPassword("users", data);
 
 // result.Message — "Success"
 ```
@@ -498,11 +559,13 @@ Task<ResetPasswordResultDTO> ResetPassword(string slug, Dictionary<string, objec
 
 #### Example
 ```csharp
-ResetPasswordResultDTO result = await client.ResetPassword("users", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["token"] = "reset-token",
     ["password"] = "newPassword123",
-});
+};
+
+ResetPasswordResultDTO result = await sdk.ResetPassword("users", data);
 
 // result.User  — DocumentDTO
 // result.Token — "eyJhbGciOi..."
@@ -518,7 +581,7 @@ Task<MessageDTO> VerifyEmail(string slug, string token, CancellationToken cancel
 
 #### Example
 ```csharp
-MessageDTO result = await client.VerifyEmail("users", "verification-token");
+MessageDTO result = await sdk.VerifyEmail("users", "verification-token");
 
 // result.Message — "Email verified successfully."
 ```
@@ -533,7 +596,7 @@ Task<MessageDTO> Logout(string slug, CancellationToken cancellationToken = defau
 
 #### Example
 ```csharp
-MessageDTO result = await client.Logout("users");
+MessageDTO result = await sdk.Logout("users");
 ```
 
 ### Unlock
@@ -546,10 +609,12 @@ Task<MessageDTO> Unlock(string slug, Dictionary<string, object?> data, Cancellat
 
 #### Example
 ```csharp
-MessageDTO result = await client.Unlock("users", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
-});
+};
+
+MessageDTO result = await sdk.Unlock("users", data);
 ```
 
 ### JWT Authentication
@@ -560,12 +625,14 @@ using PayloadCMS.DotNet.Config;
 
 var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
 
-// Login to get a token
-LoginResultDTO loginResult = await sdk.Login("users", new Dictionary<string, object?>
+var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
     ["password"] = "secret",
-});
+};
+
+// Login to get a token
+LoginResultDTO loginResult = await sdk.Login("users", data);
 
 // Set the token on the client
 sdk.SetJwtAuth(new JwtAuth(loginResult.Token!));
@@ -581,6 +648,7 @@ using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
 
 var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+
 sdk.SetApiKeyAuth(new ApiKeyAuth("users", "your-api-key-here"));
 ```
 
@@ -602,8 +670,6 @@ new JwtAuth(string token)
 
 Use `SetApiKeyAuth()` or `SetJwtAuth()` to apply credentials to the client, or `ClearAuth()` to remove them.
 
----
-
 ## Versions
 
 ### Find versions
@@ -616,7 +682,7 @@ Task<PaginatedDocsDTO> FindVersions(string slug, QueryBuilder? query = null, Can
 
 #### Example
 ```csharp
-PaginatedDocsDTO result = await client.FindVersions("posts");
+PaginatedDocsDTO result = await sdk.FindVersions("posts");
 ```
 
 ### Find version by ID
@@ -629,8 +695,11 @@ Task<DocumentDTO> FindVersionById(string slug, string id, QueryBuilder? query = 
 
 #### Example
 ```csharp
-DocumentDTO document = await client.FindVersionById("posts", "version-id");
-DocumentDTO trashed = await client.FindVersionById("posts", "version-id", new QueryBuilder().Trash(true));
+DocumentDTO document = await sdk.FindVersionById("posts", "version-id");
+
+var query = new QueryBuilder().Trash(true);
+
+DocumentDTO trashed = await sdk.FindVersionById("posts", "version-id", query);
 ```
 
 ### Restore version
@@ -643,7 +712,7 @@ Task<DocumentDTO> RestoreVersion(string slug, string id, QueryBuilder? query = n
 
 #### Example
 ```csharp
-DocumentDTO document = await client.RestoreVersion("posts", "version-id");
+DocumentDTO document = await sdk.RestoreVersion("posts", "version-id");
 ```
 
 ### Find global versions
@@ -656,7 +725,7 @@ Task<PaginatedDocsDTO> FindGlobalVersions(string slug, QueryBuilder? query = nul
 
 #### Example
 ```csharp
-PaginatedDocsDTO result = await client.FindGlobalVersions("site-settings");
+PaginatedDocsDTO result = await sdk.FindGlobalVersions("site-settings");
 ```
 
 ### Find global version by ID
@@ -669,7 +738,7 @@ Task<DocumentDTO> FindGlobalVersionById(string slug, string id, QueryBuilder? qu
 
 #### Example
 ```csharp
-DocumentDTO document = await client.FindGlobalVersionById("site-settings", "version-id");
+DocumentDTO document = await sdk.FindGlobalVersionById("site-settings", "version-id");
 ```
 
 ### Restore global version
@@ -682,10 +751,8 @@ Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, QueryBuilder? que
 
 #### Example
 ```csharp
-DocumentDTO document = await client.RestoreGlobalVersion("site-settings", "version-id");
+DocumentDTO document = await sdk.RestoreGlobalVersion("site-settings", "version-id");
 ```
-
----
 
 ## Custom Endpoints
 
@@ -724,8 +791,6 @@ Dictionary<string, object?>? result = await sdk.Request(new RequestConfig(
 ));
 ```
 
----
-
 ## Querying
 
 ### QueryBuilder
@@ -743,7 +808,7 @@ var query = new QueryBuilder()
     .Limit(10)
     .Page(2);
 
-PaginatedDocsDTO result = await client.Find("posts", query);
+PaginatedDocsDTO result = await sdk.Find("posts", query);
 
 // Serializes to: ?where[status][equals]=published&sort=createdAt&limit=10&page=2
 ```
@@ -765,43 +830,6 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `And` | `Action<WhereBuilder> callback` | Nested AND group. |
 | `Or` | `Action<WhereBuilder> callback` | Nested OR group. |
 | `Join` | `Action<JoinBuilder> callback` | Configure joins. |
-
-### Custom query parameters
-
-`AddCustomParam`, and the `Draft`/`Trash`/`Autosave` methods built on it, live in a separate
-namespace and require an explicit import:
-
-```csharp
-using PayloadCMS.DotNet.Extensions;
-```
-
-| Method | Parameters | Description |
-|--------|-----------|-------------|
-| `AddCustomParam` | `string key, object? value` | Registers an arbitrary query-string parameter. The primitive `Draft`/`Trash`/`Autosave` are built on — use this directly for parameters introduced by a Payload plugin or custom server config. |
-| `Draft` | `bool value` | Overlay latest draft content on reads; save as draft on writes. NOT a visibility filter — filter `_status` for that. |
-| `Trash` | `bool value` | Include soft-deleted documents (collections with trash enabled). |
-| `Autosave` | `bool value` | Marks a write as an autosave. Only meaningful on collections with `versions.drafts.autosave` configured. |
-
-```csharp
-var query = new QueryBuilder()
-    .Draft(true)
-    .AddCustomParam("myPluginParam", "value");
-```
-
-> **Why the separate import.** `Draft`/`Trash`/`Autosave` are opt-in Payload features per
-> collection — this library has no way to know whether a given collection has them configured.
-> Using them against a collection without the corresponding feature configured **silently no-ops
-> on reads**, and **`Draft(true)` on a write can silently commit straight to the live document** —
-> no error, no signal. Requiring the client to deliberately import this namespace mirrors the
-> deliberate server-side configuration these features require — but it's a discoverability nudge,
-> not enforcement; nothing stops a determined caller from reaching the same effect another way.
-> See [PROJECT_GUIDELINES.md §5.7](PROJECT_GUIDELINES.md#57-payload-query-parameter-semantics-draft--trash--pagination) for the full design rationale and a consumer-side mitigation pattern.
-
-Third-party or plugin-specific functionality generally doesn't need anything beyond what's already
-here: a plugin that adds new collections or fields needs no SDK changes at all (`Find`/`Create`/etc.
-already take a plain `string` slug, and `DocumentDTO.Json` already exposes arbitrary fields); a
-plugin's custom REST endpoints are reachable via [`Request()`](#custom-endpoints); a plugin's
-custom query parameter is reachable via `AddCustomParam` above.
 
 ### SelectBuilder
 
@@ -842,7 +870,9 @@ var query = new QueryBuilder()
 > embedded at all.**
 
 The `collection` argument is the target field's `relationTo` slug from your Payload config, not
-the field name. `Populate` has no effect at `Depth(0)`.
+the field name. Requires `Depth >= 1`. `Populate` **overrides** the target collection's
+`defaultPopulate` config rather than merging with it — if you have `defaultPopulate` configured,
+calling `Populate` replaces it rather than adding to it.
 
 ```csharp
 // Posts with their author resolved, but only the author's name (+ id)
@@ -850,12 +880,10 @@ var query = new QueryBuilder()
     .Depth(1)
     .Populate("users", new[] { "name" });
 
-PaginatedDocsDTO result = await client.Find("posts", query);
+PaginatedDocsDTO result = await sdk.Find("posts", query);
 
 // Serializes to: ?depth=1&populate[users][name]=true
 ```
-
-See [PROJECT_GUIDELINES.md §5.6](PROJECT_GUIDELINES.md#56-payload-query-parameter-semantics-where--select--depth--populate) for the full `where`/`select`/`depth`/`populate` semantics, including polymorphic keying and `defaultPopulate` override behavior.
 
 ### WhereBuilder
 
@@ -896,7 +924,10 @@ var query = new QueryBuilder()
 
 ### JoinBuilder
 
-Used inside the `Join()` callback to configure relationship joins.
+Used inside the `Join()` callback to configure relationship joins. `on` is the name of the `join`
+field on the collection you're querying (e.g. `"comments"` for a `posts` document's `comments`
+join field) — every `JoinBuilder` method takes it as the first parameter to identify which join
+field the call applies to.
 
 #### Example
 ```csharp
@@ -909,7 +940,7 @@ var query = new QueryBuilder()
             .Where("comments", "status", Operator.Equals, "approved");
     });
 
-PaginatedDocsDTO result = await client.Find("posts", query);
+PaginatedDocsDTO result = await sdk.Find("posts", query);
 ```
 
 | Method | Parameters | Description |
@@ -925,11 +956,9 @@ PaginatedDocsDTO result = await client.Find("posts", query);
 | `Disable` | — | Disable all joins. |
 | `IsDisabled` | — | (getter) Whether joins are disabled. |
 
----
-
 ## DTOs
 
-The included DTOs represent the **lowest common denominator** of a Payload CMS response. Because Payload collections are schema-defined by the consumer, this library cannot know the shape of your documents at compile time. Instead, `DocumentDTO` captures the universal fields (`Id`, `CreatedAt`, `UpdatedAt`) and exposes the full response as a raw `Dictionary<string, object?>`.
+The included DTOs represent the **lowest common denominator** of a Payload CMS response. `DocumentDTO` captures the universal fields (`Id`, `CreatedAt`, `UpdatedAt`) and exposes the full response as a raw `Dictionary<string, object?>`.
 
 These DTOs are **not intended to be your final domain models**. They serve as a transport-level representation that you should map into richer, typed models in your own application.
 
@@ -968,11 +997,11 @@ public class BlogPost
 Then map from the DTO in a single call:
 
 ```csharp
-DocumentDTO dto = await client.FindById("posts", "123");
+DocumentDTO dto = await sdk.FindById("posts", "123");
 BlogPost post = dto.As<BlogPost>();
 
 // Works the same for paginated results:
-PaginatedDocsDTO result = await client.Find("posts");
+PaginatedDocsDTO result = await sdk.Find("posts");
 List<BlogPost> posts = result.Docs.Select(doc => doc.As<BlogPost>()).ToList();
 ```
 
@@ -1034,8 +1063,6 @@ Found in `PayloadCMS.DotNet.Models.Errors`. Represents one entry in the `errors[
 | `Json` | `Dictionary<string, object?>` | The full raw JSON for this `errors[n]` entry. |
 
 See [Error Handling](#error-handling) for usage examples.
-
----
 
 ## Error Handling
 
@@ -1174,29 +1201,11 @@ catch (PayloadError error)
 }
 ```
 
----
-
 ## Types
-
-### Type mappings
-
-This library uses standard .NET types throughout. The mapping from the TypeScript version is:
-
-| TypeScript | C# |
-|---|---|
-| `Json` / `JsonObject` | `Dictionary<string, object?>` |
-| `JsonValue` | `object?` |
-| `JsonArray` | `List<object?>` |
-| `string \| undefined` | `string?` |
-| `number` | `int` |
-| `boolean` | `bool` |
-| `Date` | `DateTime` |
-| `Promise<T>` | `Task<T>` |
-| `Record<string, string>` | `Dictionary<string, string>` |
 
 ### Operator
 
-All supported Payload CMS where operators:
+Supported where operators:
 
 ```csharp
 public enum Operator
@@ -1222,5 +1231,27 @@ public enum Operator
 
 > **Known limitation — `Exists` on the `id` field.** `Where("id", Operator.Exists, ...)` always
 > returns zero results, regardless of `true` or `false`. This is a Payload/MongoDB-adapter
-> limitation, not a bug in this library — every other field works correctly with `Exists`. See
-> [PROJECT_GUIDELINES.md §5.2](PROJECT_GUIDELINES.md#52-wherebuilder) for the root cause.
+> limitation, not a bug in this library — every other field works correctly with `Exists`.
+
+## Extending Payload
+
+Payload can be extended with plugins and custom server-side functionality without requiring changes to this SDK. Because the SDK works against Payload's REST API rather than a fixed schema, most extensions can be used through the existing API.
+
+- **New collections or fields** — use the existing `Find`, `Create`, `Update`, etc. methods. Collection slugs are passed as strings, and `DocumentDTO.Json` exposes fields returned by the API.
+- **Custom REST endpoints** — use [`Request()`](#custom-endpoints) for endpoints not covered by the built-in methods.
+- **Custom query parameters** — use `AddCustomParam()` for query parameters not represented by `QueryBuilder`.
+
+### AddCustomParam
+
+`AddCustomParam()` registers an arbitrary query-string parameter. This is useful for plugin-specific parameters or custom server configuration.
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `AddCustomParam` | `string key, object? value` | Registers an arbitrary query-string parameter. |
+
+```csharp
+using PayloadCMS.DotNet.Extensions;
+
+var query = new QueryBuilder()
+    .AddCustomParam("myPluginParam", "value");
+```
