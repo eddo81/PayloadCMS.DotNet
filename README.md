@@ -801,13 +801,37 @@ DocumentDTO document = await sdk.RestoreGlobalVersion("site-settings", "version-
 
 ## Custom Endpoints
 
-Escape hatch for custom endpoints. Returns raw JSON instead of a DTO.
+The SDK provides dedicated methods for the standard Payload API, but custom endpoints can be added to a Payload application. `Request()` provides an escape hatch for calling those endpoints without requiring a dedicated SDK method.
+
+The request is configured through `RequestConfig`, which lets you specify the HTTP method, path, optional request body, and query parameters. The response is returned as raw JSON rather than being mapped to one of the SDK's DTOs.
+
+### Request
+Sends a request to a custom endpoint and returns the response as raw JSON.
 
 ```csharp
 Task<Dictionary<string, object?>?> Request(RequestConfig config, CancellationToken cancellationToken = default)
 ```
 
-`RequestConfig` is a record that groups all request options:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `config` | `RequestConfig` | A record that groups all request options. |
+| `cancellationToken` | `CancellationToken` | Cancellation token. |
+
+#### Example
+```csharp
+using PayloadCMS.DotNet.Config;
+
+var requestConfig = new RequestConfig(
+  Method: HttpMethod.Post,
+  Path: "/api/custom-endpoint",
+  Body: new Dictionary<string, object?> { ["key"] = "value" }
+);
+
+Dictionary<string, object?>? result = await sdk.Request(requestConfig);
+```
+
+### RequestConfig 
+Describes the request to be sent by `Request()`.
 
 ```csharp
 new RequestConfig(
@@ -824,17 +848,6 @@ new RequestConfig(
 | `Path` | `string` | URL path appended to base URL (e.g. `/api/custom-endpoint`). |
 | `Body` | `Dictionary<string, object?>?` | Optional JSON request body. |
 | `Query` | `QueryBuilder?` | Optional query parameters. |
-
-#### Example
-```csharp
-using PayloadCMS.DotNet.Config;
-
-Dictionary<string, object?>? result = await sdk.Request(new RequestConfig(
-    Method: HttpMethod.Post,
-    Path: "/api/custom-endpoint",
-    Body: new Dictionary<string, object?> { ["key"] = "value" }
-));
-```
 
 ## Querying
 
