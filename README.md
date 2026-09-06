@@ -160,7 +160,9 @@ DocumentDTO document = await sdk.Create("posts", data);
 
 #### File Uploads
 
-// Add description
+Represents a file being uploaded to an upload-enabled collection. It is accepted by `Create`, `UpdateById`, and the bulk `Update` through their `file` parameter.
+
+Supplying a file changes how the request is sent: instead of a JSON body, the SDK sends multipart form data, with the file bytes in a `file` part and the document data in a `_payload` part. Setting `mimeType` applies that content type to the file part; it can be omitted.
 
 ```csharp
 new FileUpload(byte[] content, string fileName, string? mimeType = null)
