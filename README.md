@@ -53,38 +53,6 @@ new PayloadSDK(
 | `httpClient` | `HttpClient` | The HTTP client instance to use. Caller owns the lifetime. |
 | `baseUrl` | `string` | Payload CMS instance URL. Trailing slashes are stripped automatically. |
 
-### Set headers
-
-Replaces the custom headers included with every request.
-
-```csharp
-void SetHeaders(Dictionary<string, string> headers)
-```
-
-### Set API key auth
-
-Sets an API key credential for all subsequent requests.
-
-```csharp
-void SetApiKeyAuth(ApiKeyAuth auth)
-```
-
-### Set JWT auth
-
-Sets a JWT bearer token credential for all subsequent requests.
-
-```csharp
-void SetJwtAuth(JwtAuth auth)
-```
-
-### Clear auth
-
-Clears the current authentication credential. Subsequent requests are sent without authorization headers.
-
-```csharp
-void ClearAuth()
-```
-
 ## Collections
 
 ### Find documents
@@ -463,6 +431,91 @@ DocumentDTO document = await sdk.UpdateGlobal("site-settings", data);
 
 ## Authentication
 
+Payload supports several authentication mechanisms, and this library provides the corresponding tools for configuring authentication on outgoing requests. Authentication can be configured when creating the `PayloadSDK`, changed later with `SetApiKeyAuth()` or `SetJwtAuth()`, or removed with `ClearAuth()`.
+
+For authentication mechanisms not directly covered by the SDK, use `SetHeaders()` to supply the required headers.
+
+### API key
+
+Sets an API key credential for all subsequent requests.
+
+```csharp
+void SetApiKeyAuth(ApiKeyAuth auth)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `auth` | `ApiKeyAuth` | API key credential, sets the `Authorization` header to `{collectionSlug} API-Key {apiKey}`. |
+
+#### Example
+```csharp
+using PayloadCMS.DotNet;
+using PayloadCMS.DotNet.Config;
+
+var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+
+// Create an instance of ApiKeyAuth with your API key
+var auth = new ApiKeyAuth("users", "your-api-key-here");
+
+// Set the API key on the client
+sdk.SetApiKeyAuth(auth);
+```
+
+### JWT
+
+Sets a JWT bearer token credential for all subsequent requests.
+
+```csharp
+void SetJwtAuth(JwtAuth auth)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `auth` | `JwtAuth` | JWT bearer token credential, sets the `Authorization` header to `Bearer {token}`. |
+
+#### Example
+```csharp
+using PayloadCMS.DotNet;
+using PayloadCMS.DotNet.Config;
+
+var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+
+var data = new Dictionary<string, object?>
+{
+    ["email"] = "user@example.com",
+    ["password"] = "secret",
+};
+
+// Login to get a token
+LoginResultDTO loginResult = await sdk.Login("users", data);
+
+// Create an instance of JwtAuth with the token
+var auth = new JwtAuth(loginResult.Token!);
+
+// Set the token on the client
+sdk.SetJwtAuth(auth);
+```
+
+### Clearing authentication
+
+Clears the current authentication credential. Subsequent requests are sent without authorization headers.
+
+```csharp
+void ClearAuth()
+```
+
+### Custom headers
+
+Replaces the custom headers included with every request.
+
+```csharp
+void SetHeaders(Dictionary<string, string> headers)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `headers` | `Dictionary<string, string>` | Headers to include with every subsequent request. |
+
 ### Login
 
 Authenticates a user and returns a JWT token.
@@ -501,6 +554,11 @@ Retrieves the currently authenticated user.
 Task<MeResultDTO> Me(string slug, CancellationToken cancellationToken = default)
 ```
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+
 #### Example
 ```csharp
 MeResultDTO me = await sdk.Me("users");
@@ -520,6 +578,11 @@ Refreshes the current JWT token.
 Task<RefreshResultDTO> RefreshToken(string slug, CancellationToken cancellationToken = default)
 ```
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+
 #### Example
 ```csharp
 RefreshResultDTO result = await sdk.RefreshToken("users");
@@ -536,6 +599,12 @@ Initiates the forgot-password flow.
 ```csharp
 Task<MessageDTO> ForgotPassword(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
 ```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `data` | `Dictionary<string, object?>` | Credentials (e.g. `{ email }`). |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
 #### Example
 ```csharp
@@ -556,6 +625,12 @@ Completes a password reset using a reset token.
 ```csharp
 Task<ResetPasswordResultDTO> ResetPassword(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
 ```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `data` | `Dictionary<string, object?>` | Reset data (e.g. `{ token, password }`). |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
 #### Example
 ```csharp
@@ -579,6 +654,12 @@ Verifies a user's email address.
 Task<MessageDTO> VerifyEmail(string slug, string token, CancellationToken cancellationToken = default)
 ```
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `token` | `string` | Email verification token. |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+
 #### Example
 ```csharp
 MessageDTO result = await sdk.VerifyEmail("users", "verification-token");
@@ -594,9 +675,16 @@ Logs out the currently authenticated user.
 Task<MessageDTO> Logout(string slug, CancellationToken cancellationToken = default)
 ```
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+
 #### Example
 ```csharp
 MessageDTO result = await sdk.Logout("users");
+
+// result.Message — "Logout successful."
 ```
 
 ### Unlock
@@ -607,6 +695,12 @@ Unlocks a user account that has been locked due to failed login attempts.
 Task<MessageDTO> Unlock(string slug, Dictionary<string, object?> data, CancellationToken cancellationToken = default)
 ```
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | `string` | Auth-enabled collection slug. |
+| `data` | `Dictionary<string, object?>` | Credentials (e.g. `{ email }`). |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+
 #### Example
 ```csharp
 var data = new Dictionary<string, object?>
@@ -615,60 +709,9 @@ var data = new Dictionary<string, object?>
 };
 
 MessageDTO result = await sdk.Unlock("users", data);
+
+// result.Message — "Success"
 ```
-
-### JWT Authentication
-
-```csharp
-using PayloadCMS.DotNet;
-using PayloadCMS.DotNet.Config;
-
-var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
-
-var data = new Dictionary<string, object?>
-{
-    ["email"] = "user@example.com",
-    ["password"] = "secret",
-};
-
-// Login to get a token
-LoginResultDTO loginResult = await sdk.Login("users", data);
-
-// Set the token on the client
-sdk.SetJwtAuth(new JwtAuth(loginResult.Token!));
-
-// Authenticated requests now include the Bearer token
-MeResultDTO me = await sdk.Me("users");
-```
-
-### API Key Authentication
-
-```csharp
-using PayloadCMS.DotNet;
-using PayloadCMS.DotNet.Config;
-
-var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
-
-sdk.SetApiKeyAuth(new ApiKeyAuth("users", "your-api-key-here"));
-```
-
-#### `ApiKeyAuth`
-
-Sets the `Authorization` header to `{collectionSlug} API-Key {apiKey}`.
-
-```csharp
-new ApiKeyAuth(string collectionSlug, string apiKey)
-```
-
-#### `JwtAuth`
-
-Sets the `Authorization` header to `Bearer {token}`.
-
-```csharp
-new JwtAuth(string token)
-```
-
-Use `SetApiKeyAuth()` or `SetJwtAuth()` to apply credentials to the client, or `ClearAuth()` to remove them.
 
 ## Versions
 
@@ -793,11 +836,12 @@ Dictionary<string, object?>? result = await sdk.Request(new RequestConfig(
 
 ## Querying
 
-### QueryBuilder
+The SDK handles querying through the `QueryBuilder` class. The `QueryBuilder` provides a fluent API for constructing the query parameters used by Payload's REST API. Use it to control pagination and sorting, select or exclude fields, populate relationships, filter documents with where conditions, and configure joins.
 
-Fluent builder for query parameters. All methods return `this` for chaining.
+A query can combine these options freely, and the same `QueryBuilder` is used across the SDK's read and write operations that accept query parameters. The builder takes care of translating the C# API into Payload's query-string format.
 
-#### Example
+All methods of the `QueryBuilder` return the builder itself, allowing query options to be chained together.
+
 ```csharp
 using PayloadCMS.DotNet.Enums;
 using PayloadCMS.DotNet.Query;
@@ -810,72 +854,245 @@ var query = new QueryBuilder()
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);
 
-// Serializes to: ?where[status][equals]=published&sort=createdAt&limit=10&page=2
+// Serializes to: ?limit=10&page=2&sort=createdAt&where[status][equals]=published
 ```
 
-| Method | Parameters | Description |
-|--------|-----------|-------------|
-| `Limit` | `int value` | Maximum documents per page. |
-| `Page` | `int value` | Page number. |
-| `Pagination` | `bool value` | `false` returns every match and skips the `totalDocs`/`totalPages` count query. Combine with `Limit` to still cap results. |
-| `Sort` | `string field` | Sort ascending by field. |
-| `SortByDescending` | `string field` | Sort descending by field. |
-| `Depth` | `int value` | Population depth for relationships. |
-| `Locale` | `string value` | Locale for localized fields. |
-| `FallbackLocale` | `string value` | Fallback locale. |
-| `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
-| `Exclude` | `string[] fields` | Mark fields for exclusion. Supports dot notation. |
-| `Populate` | `string collection, string[] fields` | Field mask for populated docs from a collection. Requires `Depth >= 1`. |
-| `Where` | `string field, Operator op, object? value` | Add a where condition. |
-| `And` | `Action<WhereBuilder> callback` | Nested AND group. |
-| `Or` | `Action<WhereBuilder> callback` | Nested OR group. |
-| `Join` | `Action<JoinBuilder> callback` | Configure joins. |
+### Limit
 
-### SelectBuilder
+Limits the number of documents returned per page.
 
-Composes field inclusion/exclusion entries into a nested structure that serializes to Payload's bracket notation (e.g. `select[group][number]=true`). Use dot notation to target nested fields — `"group.number"` is expanded into the correct nested structure automatically.
+Use `Limit()` to control the size of each page of results, or together with `Sort()` when you only need a limited set of ordered documents.
 
-`SelectBuilder` is used internally by `QueryBuilder`. The `Select()` and `Exclude()` methods on `QueryBuilder` delegate directly to it.
+```csharp
+QueryBuilder Limit(int value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `int` | Maximum documents per page. |
 
 #### Example
 ```csharp
-// Include specific fields (lightweight listing)
+// The 5 most recent posts
+var query = new QueryBuilder()
+    .SortByDescending("createdAt")
+    .Limit(5);
+
+// Serializes to: ?limit=5&sort=-createdAt
+```
+
+### Page
+
+Selects which page of results to return, based on the current `Limit`. Pages are 1-based, so `Page(1)` is the first page.
+
+```csharp
+QueryBuilder Page(int value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `int` | Page number (1-based). |
+
+#### Example
+```csharp
+// Documents 21–30
+var query = new QueryBuilder()
+    .Limit(10)
+    .Page(3);
+
+PaginatedDocsDTO result = await sdk.Find("posts", query);
+
+// result.Page        — 3
+// result.HasNextPage — true / false
+// result.TotalPages  — total pages available
+
+// Serializes to: ?limit=10&page=3
+```
+
+### Pagination
+
+Toggles pagination for the query. When pagination is disabled, matching documents are returned in a single response rather than split into pages.
+
+An explicit `Limit()` is still respected, allowing you to disable pagination while limiting the number of documents returned. Disabling pagination also avoids the additional count query normally used to calculate pagination totals.
+
+```csharp
+QueryBuilder Pagination(bool value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `bool` | `false` disables pagination and returns every match. |
+
+#### Example
+```csharp
+// Every published post, in one response
+var query = new QueryBuilder()
+    .Where("status", Operator.Equals, "published")
+    .Pagination(false);
+
+// Skip the count query, but still cap the result set
+var capped = new QueryBuilder()
+    .Pagination(false)
+    .Limit(100);
+
+// Serializes to: ?limit=100&pagination=false
+```
+
+### Sort
+
+Orders results by a field, ascending. Call it more than once to sort by several fields — the calls
+accumulate left to right, so the first is the primary sort.
+
+```csharp
+QueryBuilder Sort(string field)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `field` | `string` | Field name to sort by, ascending. |
+
+#### Example
+```csharp
+// Category first, then title within each category
+var query = new QueryBuilder()
+    .Sort("category")
+    .Sort("title");
+
+// Serializes to: ?sort=category,title
+```
+
+### SortByDescending
+
+Same as `Sort()` but in reverse order. The `-` prefix Payload expects is added for you, and passing a field that already has one is safe.
+
+Mixes freely with `Sort()` for multi-field ordering.
+
+```csharp
+QueryBuilder SortByDescending(string field)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `field` | `string` | Field name to sort by, descending. |
+
+#### Example
+```csharp
+// Featured items first, then newest within each group
+var query = new QueryBuilder()
+    .SortByDescending("featured")
+    .SortByDescending("createdAt");
+
+// Serializes to: ?sort=-featured,-createdAt
+```
+
+### Depth
+
+Controls how deeply relationships are resolved.
+
+At depth `0`, relationship fields contain their document IDs. At depth `1`, related documents are populated; increasing the depth allows relationships within those documents to be populated as well.
+
+Because the shape of a relationship field depends on the requested depth, code consuming the result should account for the corresponding value type.
+
+```csharp
+QueryBuilder Depth(int value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `int` | Levels of relationships to resolve. `0` returns bare IDs. |
+
+#### Example
+```csharp
+// author comes back as a full user document rather than an id
+var query = new QueryBuilder()
+    .Depth(1);
+
+DocumentDTO post = await sdk.FindById("posts", "123", query);
+
+// Serializes to: ?depth=1
+```
+
+### Select
+
+Use `Select()` to return only the fields that you specify, instead of the complete document. This is the main tool for trimming the size of the response that gets returned by the query.
+
+Field names can use dot notation to reach nested fields. For example, `"group.number"` is expanded into the nested structure Payload expects.
+
+```csharp
+QueryBuilder Select(string[] fields)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `fields` | `string[]` | Field names to include. Supports dot notation for nested fields. |
+
+#### Example
+```csharp
+// A lightweight listing — just what the UI renders
 var query = new QueryBuilder()
     .Select(new[] { "title", "createdAt" });
 
-// Include a nested field using dot notation
-var query = new QueryBuilder()
-    .Select(new[] { "title", "group.number" });
-// Serializes to: ?select[title]=true&select[group][number]=true
+// Serializes to: ?select[title]=true&select[createdAt]=true
 
-// Exclude one expensive field, keep everything else
+// Nested fields via dot notation
+var nested = new QueryBuilder()
+    .Select(new[] { "title", "group.number" });
+
+// Serializes to: ?select[title]=true&select[group][number]=true
+```
+
+### Exclude
+
+The inverse of `Select()`, returns all fields *except* those you specify.
+
+Like `Select()`, field names can use dot notation to target nested fields. `Exclude()` can also be combined with `Select()` in the same query.
+
+```csharp
+QueryBuilder Exclude(string[] fields)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `fields` | `string[]` | Field names to exclude. Supports dot notation for nested fields. |
+
+#### Example
+```csharp
+// Everything except the heavy content field
 var query = new QueryBuilder()
     .Exclude(new[] { "content" });
 
-// Mix inclusion and exclusion
-var query = new QueryBuilder()
+// Combined with Select
+var mixed = new QueryBuilder()
     .Select(new[] { "title", "group.number" })
     .Exclude(new[] { "content" });
 ```
 
-| Method | Parameters | Description |
-|--------|-----------|-------------|
-| `Select` | `string[] fields` | Mark fields for inclusion. Supports dot notation. |
-| `Exclude` | `string[] fields` | Mark fields for exclusion. Supports dot notation. |
-
 ### Populate
 
-> **`Select` masks fields inside the document you queried. `Populate` masks fields inside
-> *other* documents embedded into it. `Depth` decides whether those other documents get
-> embedded at all.**
+Controls which fields are returned when *related* documents are populated.
 
-The `collection` argument is the target field's `relationTo` slug from your Payload config, not
-the field name. Requires `Depth >= 1`. `Populate` **overrides** the target collection's
-`defaultPopulate` config rather than merging with it — if you have `defaultPopulate` configured,
-calling `Populate` replaces it rather than adding to it.
+For example, you can use `Depth(1)` to populate an author's document and `Populate()` to return only the author's name rather than the complete user document.
+
+The three methods `Depth()`, `Select()` and `Populate()` serve different purposes: `Select()` controls the fields returned by the documents being queried, `Populate()` controls the fields returned by related documents, and `Depth()` controls whether those related documents are populated at all.
+
+`Populate()` requires a depth of at least `1`.
+
+The `collection` parameter is the slug of the target collection, not the name of the relationship field.
+
+If the target collection has a `defaultPopulate` configuration, `Populate()` replaces that configuration rather than merging with it.
 
 ```csharp
-// Posts with their author resolved, but only the author's name (+ id)
+QueryBuilder Populate(string collection, string[] fields)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `collection` | `string` | Slug of the related collection being populated. |
+| `fields` | `string[]` | Field names to return on those related documents. Supports dot notation. |
+
+#### Example
+```csharp
+// Posts with their author resolved, but only the author's name
 var query = new QueryBuilder()
     .Depth(1)
     .Populate("users", new[] { "name" });
@@ -885,12 +1102,146 @@ PaginatedDocsDTO result = await sdk.Find("posts", query);
 // Serializes to: ?depth=1&populate[users][name]=true
 ```
 
-### WhereBuilder
+### Locale
 
-Used inside `And()` and `Or()` callbacks to compose nested where clauses.
+Requests localized fields in the specified locale.
+
+Use `"all"` to return values for all available locales.
+
+```csharp
+QueryBuilder Locale(string value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `string` | Locale code (e.g. `"en"`, `"sv"`), or `"all"` for every locale. |
 
 #### Example
 ```csharp
+var query = new QueryBuilder()
+    .Locale("sv");
+
+// Serializes to: ?locale=sv
+```
+
+### FallbackLocale
+
+Controls which locale to use when a field has no value in the requested locale.
+
+Pass a locale code to specify the fallback locale, or `"false"` to disable fallback. Disabling fallback allows missing localized values to remain `null` rather than being supplied from another locale.
+
+```csharp
+QueryBuilder FallbackLocale(string value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `string` | Locale code to fall back to, or `"false"` to disable fallback entirely. |
+
+#### Example
+```csharp
+// Swedish only — untranslated fields come back null instead of silently showing English
+var query = new QueryBuilder()
+    .Locale("sv")
+    .FallbackLocale("false");
+
+// Serializes to: ?locale=sv&fallback-locale=false
+```
+
+### Where
+
+Filters which documents get returned by the query. Specify the field to compare, the comparison operator, and the value to compare it against. Each call adds one condition on a field, and multiple calls combine as AND.
+
+```csharp
+QueryBuilder Where(string field, Operator op, object? value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `field` | `string` | Field name to filter on. Supports dot notation for nested fields. |
+| `op` | `Operator` | Comparison to apply. |
+| `value` | `object?` | Value to compare against. |
+
+#### Example
+```csharp
+// Published posts with more than 100 views
+var query = new QueryBuilder()
+    .Where("status", Operator.Equals, "published")
+    .Where("views", Operator.GreaterThan, 100);
+
+// Serializes to: ?where[status][equals]=published&where[views][greater_than]=100
+```
+
+The `Operator` enum supports the following type of comparisons.
+
+```csharp
+public enum Operator
+{
+    Equals,
+    Contains,
+    NotEquals,
+    In,
+    All,
+    NotIn,
+    Exists,
+    GreaterThan,
+    GreaterThanEqual,
+    LessThan,
+    LessThanEqual,
+    Like,
+    NotLike,
+    Within,
+    Intersects,
+    Near,
+}
+```
+
+**Known limitation**: `Operator.Exists` on the `id` field of a collection always returns zero results, regardless of `true` or `false`.
+
+### And
+
+Groups several conditions into a single AND block. Use it when a plain sequence of `Where()` calls
+can't express the shape you need — most often when an AND group has to sit *inside* an OR.
+
+The callback receives a nested builder exposing the same `Where`, `And`, and `Or` methods, so
+groups can be composed to any depth.
+
+```csharp
+QueryBuilder And(Action<WhereBuilder> callback)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `callback` | `Action<WhereBuilder>` | Receives a nested builder for composing the grouped conditions. |
+
+#### Example
+```csharp
+var query = new QueryBuilder()
+    .Where("status", Operator.Equals, "published")
+    .And(builder =>
+    {
+        builder
+            .Where("views", Operator.GreaterThan, 100)
+            .Where("featured", Operator.Equals, true);
+    });
+```
+
+### Or
+
+Groups conditions so that *any* of them can match. This is how you express "posts in either of
+these two categories" without running two queries.
+
+```csharp
+QueryBuilder Or(Action<WhereBuilder> callback)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `callback` | `Action<WhereBuilder>` | Receives a nested builder for composing the grouped conditions. |
+
+#### Example
+```csharp
+// Published, and in one of two categories
 var query = new QueryBuilder()
     .Where("status", Operator.Equals, "published")
     .Or(builder =>
@@ -903,58 +1254,62 @@ var query = new QueryBuilder()
 // Serializes to: ?where[status][equals]=published&where[or][0][category][equals]=news&where[or][1][category][equals]=blog
 ```
 
-Nested AND groups work the same way:
+### Join
+
+Configures the documents returned through a Payload **join field** — the reverse side of a
+relationship, such as a post's comments. Without configuration a join returns Payload's defaults;
+`Join()` lets you page, sort, filter, and count that nested set independently of the parent query.
+
+The callback receives a builder whose methods all take an `on` parameter first: the name of the
+join field on the collection you're querying (`"comments"` on a `posts` document).
 
 ```csharp
-var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "published")
-    .And(builder =>
-    {
-        builder
-            .Where("views", Operator.GreaterThan, 100)
-            .Where("featured", Operator.Equals, true);
-    });
+QueryBuilder Join(Action<JoinBuilder> callback)
 ```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `callback` | `Action<JoinBuilder>` | Receives a builder for configuring join fields. |
+
+Inside the callback:
 
 | Method | Parameters | Description |
 |--------|-----------|-------------|
-| `Where` | `string field, Operator op, object? value` | Add a where condition. |
-| `And` | `Action<WhereBuilder> callback` | Nested AND group. |
-| `Or` | `Action<WhereBuilder> callback` | Nested OR group. |
-
-### JoinBuilder
-
-Used inside the `Join()` callback to configure relationship joins. `on` is the name of the `join`
-field on the collection you're querying (e.g. `"comments"` for a `posts` document's `comments`
-join field) — every `JoinBuilder` method takes it as the first parameter to identify which join
-field the call applies to.
+| `Limit` | `string on, int value` | Maximum joined documents to return. |
+| `Page` | `string on, int value` | Page of joined documents. |
+| `Sort` | `string on, string field` | Sort joined documents ascending. |
+| `SortByDescending` | `string on, string field` | Sort joined documents descending. |
+| `Count` | `string on, bool value = true` | Include a total count of joined documents. |
+| `Where` | `string on, string field, Operator op, object? value` | Filter joined documents. |
+| `And` | `string on, Action<WhereBuilder> callback` | Nested AND group on joined documents. |
+| `Or` | `string on, Action<WhereBuilder> callback` | Nested OR group on joined documents. |
+| `Disable` | — | Turn off all join fields for this query. |
+| `IsDisabled` | — | (getter) Whether joins have been disabled. |
 
 #### Example
 ```csharp
+// Posts, each with their 5 newest approved comments
 var query = new QueryBuilder()
     .Join(join =>
     {
         join
             .Limit("comments", 5)
-            .Sort("comments", "createdAt")
+            .SortByDescending("comments", "createdAt")
             .Where("comments", "status", Operator.Equals, "approved");
     });
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);
 ```
 
-| Method | Parameters | Description |
-|--------|-----------|-------------|
-| `Limit` | `string on, int value` | Limit documents for a join field. |
-| `Page` | `string on, int value` | Page number for a join field. |
-| `Sort` | `string on, string field` | Sort ascending by field. |
-| `SortByDescending` | `string on, string field` | Sort descending by field. |
-| `Count` | `string on, bool? value = null` | Enable/disable counting. |
-| `Where` | `string on, string field, Operator op, object? value` | Where condition on a join field. |
-| `And` | `string on, Action<WhereBuilder> callback` | Nested AND group on a join field. |
-| `Or` | `string on, Action<WhereBuilder> callback` | Nested OR group on a join field. |
-| `Disable` | — | Disable all joins. |
-| `IsDisabled` | — | (getter) Whether joins are disabled. |
+Joins can also be switched off entirely, which is worth doing when you don't need the nested data
+and want to avoid the lookups:
+
+```csharp
+var query = new QueryBuilder()
+    .Join(join => join.Disable());
+
+// Serializes to: ?joins=false
+```
 
 ## DTOs
 
@@ -1200,38 +1555,6 @@ catch (PayloadError error)
     }
 }
 ```
-
-## Types
-
-### Operator
-
-Supported where operators:
-
-```csharp
-public enum Operator
-{
-    Equals, 
-    NotEquals, 
-    Contains, 
-    Like, 
-    NotLike,
-    In, 
-    NotIn, 
-    All, 
-    Exists,
-    GreaterThan, 
-    GreaterThanEqual, 
-    LessThan, 
-    LessThanEqual,
-    Within, 
-    Intersects, 
-    Near,
-}
-```
-
-> **Known limitation — `Exists` on the `id` field.** `Where("id", Operator.Exists, ...)` always
-> returns zero results, regardless of `true` or `false`. This is a Payload/MongoDB-adapter
-> limitation, not a bug in this library — every other field works correctly with `Exists`.
 
 ## Extending Payload
 
