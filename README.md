@@ -221,7 +221,7 @@ var data = new Dictionary<string, object?>
 DocumentDTO document = await sdk.UpdateById("posts", "123", data);
 ```
 
-### Bulk update
+### Update
 
 Bulk-updates all documents matching a query. Supports file uploads.
 
@@ -270,7 +270,7 @@ Task<DocumentDTO> DeleteById(string slug, string id, QueryBuilder? query = null,
 DocumentDTO document = await sdk.DeleteById("posts", "123");
 ```
 
-### Bulk delete
+### Delete
 
 Bulk-deletes all documents matching a query.
 
@@ -287,7 +287,7 @@ Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken
 #### Example
 ```csharp
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "archived");
+    .Where("_status", Operator.Equals, "draft");
 
 BulkOperationDTO result = await sdk.Delete("posts", query);
 ```
@@ -378,7 +378,7 @@ var query = new QueryBuilder().Trash(true);
 await sdk.DeleteById("posts", "123", query);
 ```
 
-When performing bulk operations, take care when combining `Trash(true)` with broad `where` conditions: both trashed and non-trashed documents may be included.
+When performing bulk operations (`Update`, `Delete`), take care when combining `Trash(true)` with broad `where` conditions: both trashed and non-trashed documents may be included.
 
 ### Autosave
 
@@ -864,7 +864,7 @@ using PayloadCMS.DotNet.Enums;
 using PayloadCMS.DotNet.Query;
 
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "published")
+    .Where("_status", Operator.Equals, "published")
     .Sort("createdAt")
     .Limit(10)
     .Page(2);
@@ -944,7 +944,7 @@ QueryBuilder Pagination(bool value)
 ```csharp
 // Every published post, in one response
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "published")
+    .Where("_status", Operator.Equals, "published")
     .Pagination(false);
 
 // Skip the count query, but still cap the result set
@@ -1183,7 +1183,7 @@ QueryBuilder Where(string field, Operator op, object? value)
 ```csharp
 // Published posts with more than 100 views
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "published")
+    .Where("_status", Operator.Equals, "published")
     .Where("views", Operator.GreaterThan, 100);
 
 // Serializes to: ?where[status][equals]=published&where[views][greater_than]=100
@@ -1234,7 +1234,7 @@ QueryBuilder And(Action<WhereBuilder> callback)
 #### Example
 ```csharp
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "published")
+    .Where("_status", Operator.Equals, "published")
     .And(builder =>
     {
         builder
@@ -1260,7 +1260,7 @@ QueryBuilder Or(Action<WhereBuilder> callback)
 ```csharp
 // Published, and in one of two categories
 var query = new QueryBuilder()
-    .Where("status", Operator.Equals, "published")
+    .Where("_status", Operator.Equals, "published")
     .Or(builder =>
     {
         builder
@@ -1278,7 +1278,7 @@ relationship, such as a post's comments. Without configuration a join returns Pa
 `Join()` lets you page, sort, filter, and count that nested set independently of the parent query.
 
 The callback receives a builder whose methods all take an `on` parameter first: the name of the
-join field on the collection you're querying (`"comments"` on a `posts` document).
+`join field` on the collection you're querying (`"comments"` on a `posts` document).
 
 ```csharp
 QueryBuilder Join(Action<JoinBuilder> callback)
@@ -1571,7 +1571,7 @@ catch (PayloadError error)
 }
 ```
 
-## Extending Payload
+## Customizing the SDK
 
 Payload CMS can be extended with plugins and custom server-side functionality without requiring changes to this SDK. Because the SDK works against Payload CMS's REST API rather than a fixed schema, most extensions can be used through the existing API.
 
