@@ -1,6 +1,6 @@
 # Payload CMS .NET SDK
 
-A lightweight, strongly typed C# SDK for interacting with the [Payload CMS](https://payloadcms.com/) REST API. This library handles HTTP communication, authentication, query construction, and response parsing. Requires .NET 8.0 or later. 
+A lightweight, type-safe C# SDK for interacting with the [Payload CMS](https://payloadcms.com/) REST API. This library handles HTTP communication, authentication, query construction, and response parsing. Requires .NET 8.0 or later. 
 
 ## Features
 
@@ -54,6 +54,8 @@ new PayloadSDK(
 | `baseUrl` | `string` | Payload CMS instance URL. Trailing slashes are stripped automatically. |
 
 ## Collections
+
+The SDK provides methods for reading, creating, updating, and deleting documents in a collection, including bulk operations.
 
 ### Find documents
 
@@ -140,7 +142,7 @@ Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, QueryBui
 |-----------|------|-------------|
 | `slug` | `string` | Collection slug. |
 | `data` | `Dictionary<string, object?>` | Document data. |
-| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Locale`, `Depth`, `Limit` etc. |
+| `query` | `QueryBuilder?` | Optional write-time query parameters — e.g. `Locale`, `Depth`, `Limit` etc. |
 | `file` | `FileUpload?` | Optional file to upload (for upload-enabled collections). |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
@@ -205,7 +207,7 @@ Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?>
 | `slug` | `string` | Collection slug. |
 | `id` | `string` | Document ID. |
 | `data` | `Dictionary<string, object?>` | Fields to update. |
-| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Draft(true)` to save the edit as a draft version. |
+| `query` | `QueryBuilder?` | Optional write-time query parameters — e.g. `Draft(true)` to save the edit as a draft version. |
 | `file` | `FileUpload?` | Optional replacement file. |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
@@ -260,7 +262,7 @@ Task<DocumentDTO> DeleteById(string slug, string id, QueryBuilder? query = null,
 |-----------|------|-------------|
 | `slug` | `string` | Collection slug. |
 | `id` | `string` | Document ID. |
-| `query` | `QueryBuilder?` | Optional write-time params — e.g. `Trash(true)` to permanently delete an already soft-deleted document. |
+| `query` | `QueryBuilder?` | Optional write-time query parameters — e.g. `Trash(true)` to permanently delete an already soft-deleted document. |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
 #### Example
@@ -292,7 +294,7 @@ BulkOperationDTO result = await sdk.Delete("posts", query);
 
 ## Draft, Trash & Autosave
 
-`Draft`, `Trash`, and `Autosave` correspond to optional Payload features. Because these features are configured per collection, the SDK cannot determine whether they are enabled on the collection you're working with.
+`Draft`, `Trash`, and `Autosave` correspond to optional Payload CMS features. Because these features are configured per collection, the SDK cannot determine whether they are enabled on the collection you're working with.
 
 The three methods are available through PayloadCMS.DotNet.Extensions:
 
@@ -306,7 +308,7 @@ using PayloadCMS.DotNet.Extensions;
 | Trash	| bool value	| Includes soft-deleted documents in the operation.
 | Autosave	| bool value	| Marks a write as an autosave.
 
-> **Note:** These methods depend on the corresponding feature being enabled in Payload. The SDK does not validate the collection configuration, so using a method where the feature is not enabled may have no effect. In particular, Draft(true) on a collection without drafts enabled does not cause an error and may result in a normal write.
+> **Note:** These methods depend on the corresponding feature being enabled in Payload CMS. The SDK does not validate the collection configuration, so using a method where the feature is not enabled may have no effect. In particular, Draft(true) on a collection without drafts enabled does not cause an error and may result in a normal write.
 
 ### Draft
 
@@ -433,7 +435,7 @@ DocumentDTO document = await sdk.UpdateGlobal("site-settings", data);
 
 ## Authentication
 
-Payload supports several authentication mechanisms, and this library provides the corresponding tools for configuring authentication on outgoing requests. Authentication can be configured when creating the `PayloadSDK`, changed later with `SetApiKeyAuth()` or `SetJwtAuth()`, or removed with `ClearAuth()`.
+Payload CMS supports several authentication mechanisms, and this library provides the corresponding tools for configuring authentication on outgoing requests. Authentication can be configured when creating the `PayloadSDK`, changed later with `SetApiKeyAuth()` or `SetJwtAuth()`, or removed with `ClearAuth()`.
 
 For authentication mechanisms not directly covered by the SDK, use `SetHeaders()` to supply the required headers.
 
@@ -801,7 +803,7 @@ DocumentDTO document = await sdk.RestoreGlobalVersion("site-settings", "version-
 
 ## Custom Endpoints
 
-The SDK provides dedicated methods for the standard Payload API, but custom endpoints can be added to a Payload application. `Request()` provides an escape hatch for calling those endpoints without requiring a dedicated SDK method.
+The SDK provides dedicated methods for the standard Payload CMS REST API, but custom endpoints can be added. `Request()` provides an escape hatch for calling those endpoints without requiring a dedicated SDK method.
 
 The request is configured through `RequestConfig`, which lets you specify the HTTP method, path, optional request body, and query parameters. The response is returned as raw JSON rather than being mapped to one of the SDK's DTOs.
 
@@ -855,7 +857,7 @@ The SDK handles querying through the `QueryBuilder` class. The `QueryBuilder` pr
 
 A query can combine these options freely, and the same `QueryBuilder` is used across the SDK's read and write operations that accept query parameters. The builder takes care of translating the C# API into Payload's query-string format.
 
-All methods of the `QueryBuilder` return the builder itself, allowing query options to be chained together.
+All methods of the `QueryBuilder` return the builder itself, allowing them to be chained together.
 
 ```csharp
 using PayloadCMS.DotNet.Enums;
@@ -978,7 +980,7 @@ var query = new QueryBuilder()
 
 ### SortByDescending
 
-Same as `Sort()` but in reverse order. The `-` prefix Payload expects is added for you, and passing a field that already has one is safe.
+Same as `Sort()` but in reverse order. The `-` prefix Payload CMS expects is added for you, and passing a field that already has one is safe.
 
 Mixes freely with `Sort()` for multi-field ordering.
 
@@ -1031,7 +1033,7 @@ DocumentDTO post = await sdk.FindById("posts", "123", query);
 
 Use `Select()` to return only the fields that you specify, instead of the complete document. This is the main tool for trimming the size of the response that gets returned by the query.
 
-Field names can use dot notation to reach nested fields. For example, `"group.number"` is expanded into the nested structure Payload expects.
+Field names can use dot notation to reach nested fields. For example, `"group.number"` is expanded into the nested structure Payload CMS expects.
 
 ```csharp
 QueryBuilder Select(string[] fields)
@@ -1271,7 +1273,7 @@ var query = new QueryBuilder()
 
 ### Join
 
-Configures the documents returned through a Payload **join field** — the reverse side of a
+Configures the documents returned through a **join field** — the reverse side of a
 relationship, such as a post's comments. Without configuration a join returns Payload's defaults;
 `Join()` lets you page, sort, filter, and count that nested set independently of the parent query.
 
@@ -1328,11 +1330,9 @@ var query = new QueryBuilder()
 
 ## DTOs
 
-The included DTOs represent the **lowest common denominator** of a Payload CMS response. `DocumentDTO` captures the universal fields (`Id`, `CreatedAt`, `UpdatedAt`) and exposes the full response as a raw `Dictionary<string, object?>`.
+The included DTOs provide a common transport-level representation of Payload CMS REST API responses. They are not intended to be your final domain models. `DocumentDTO` captures the universal fields (`Id`, `CreatedAt`, `UpdatedAt`) and exposes the full response as a raw `Dictionary<string, object?>`.
 
-These DTOs are **not intended to be your final domain models**. They serve as a transport-level representation that you should map into richer, typed models in your own application.
-
-A convenient pattern is to write a `DocumentDTO` extension method using `System.Text.Json` — property names are matched case-insensitively by default, and `[JsonPropertyName]` can be used for explicit mappings:
+The DTOs can be mapped to richer, strongly typed models in your own application. A convenient way to do this is with a `DocumentDTO` extension method using `System.Text.Json`. Property names are matched case-insensitively by default, while `[JsonPropertyName]` can be used when explicit mappings are needed:
 
 ```csharp
 using System.Text.Json;
@@ -1423,7 +1423,7 @@ Returned by bulk write operations (`Update`, `Delete`). Maps to Payload's `BulkO
 
 ### RequestErrorDTO
 
-Found in `PayloadCMS.DotNet.Models.Errors`. Represents one entry in the `errors[]` array from a failed Payload response. Payload's error shape is intentionally dynamic — only the base fields below are guaranteed across all error types. The `Json` property gives access to the full raw entry, including the `data` block present on `ValidationError` and `APIError` responses.
+Found in `PayloadCMS.DotNet.Models.Errors`. Represents one entry in the `errors[]` array from a failed Payload CMS REST API response. Payload's error shape is intentionally dynamic — only the base fields below are guaranteed across all error types. The `Json` property gives access to the full raw entry, including the `data` block present on `ValidationError` and `APIError` responses.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1436,7 +1436,7 @@ See [Error Handling](#error-handling) for usage examples.
 
 ## Error Handling
 
-`PayloadError` is thrown when a Payload CMS API request fails with a non-2xx status code.
+`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code.
 
 ```csharp
 public class PayloadError : Exception
@@ -1455,7 +1455,7 @@ public class PayloadError : Exception
 | `Response` | `HttpResponseMessage?` | The originating HTTP response. |
 | `Message` | `string` | Human-readable status code message (from `Exception`). |
 | `Body` | `string?` | The raw unparsed JSON response body, if available. |
-| `ServerStack` | `string?` | Server-side stack trace. Payload includes this in development mode only. |
+| `ServerStack` | `string?` | Server-side stack trace. Payload CMS includes this in development mode only. |
 | `Result` | `IReadOnlyList<RequestErrorDTO>` | Parsed entries from `errors[]` in the response body. |
 
 Each entry in `Result` is an [`RequestErrorDTO`](#requesterrordto).
@@ -1573,7 +1573,7 @@ catch (PayloadError error)
 
 ## Extending Payload
 
-Payload can be extended with plugins and custom server-side functionality without requiring changes to this SDK. Because the SDK works against Payload's REST API rather than a fixed schema, most extensions can be used through the existing API.
+Payload CMS can be extended with plugins and custom server-side functionality without requiring changes to this SDK. Because the SDK works against Payload CMS's REST API rather than a fixed schema, most extensions can be used through the existing API.
 
 - **New collections or fields** — use the existing `Find`, `Create`, `Update`, etc. methods. Collection slugs are passed as strings, and `DocumentDTO.Json` exposes fields returned by the API.
 - **Custom REST endpoints** — use [`Request()`](#custom-endpoints) for endpoints not covered by the built-in methods.
