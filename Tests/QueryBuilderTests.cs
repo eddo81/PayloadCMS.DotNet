@@ -22,6 +22,193 @@ public class QueryBuilderTests
     }
 
     [Fact]
+    public void SortWithEmptyFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Sort("")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void SortWithEmptyFieldShouldNotAddSeparatorBetweenValidFields()
+    {
+        var params_ = new QueryBuilder()
+            .Sort("date")
+            .Sort("")
+            .Sort("title")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("sort=date,title", actual);
+    }
+
+    [Fact]
+    public void SortWithNullFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Sort(null!)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void SortWithNullFieldShouldNotAddTrailingSeparator()
+    {
+        var params_ = new QueryBuilder()
+            .Sort("date")
+            .Sort(null!)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("sort=date", actual);
+    }
+
+    [Fact]
+    public void SortByDescendingWithEmptyFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .SortByDescending("")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void SortByDescendingWithNullFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .SortByDescending(null!)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void SortByDescendingWithAlreadyPrefixedFieldShouldNotDoublePrefix()
+    {
+        var params_ = new QueryBuilder()
+            .SortByDescending("-title")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("sort=-title", actual);
+    }
+
+    [Fact]
+    public void SortByDescendingWithEmptyFieldShouldNotAddSeparatorBetweenValidFields()
+    {
+        var params_ = new QueryBuilder()
+            .Sort("date")
+            .SortByDescending("")
+            .SortByDescending("title")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("sort=date,-title", actual);
+    }
+
+    [Fact]
+    public void LocaleAndFallbackLocaleShouldSerialize()
+    {
+        var params_ = new QueryBuilder()
+            .Locale("sv")
+            .FallbackLocale("en")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("locale=sv&fallback-locale=en", actual);
+    }
+
+    [Fact]
+    public void LocaleWithEmptyValueShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Locale("")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void LocaleWithNullValueShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Locale(null!)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void FallbackLocaleWithEmptyValueShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .FallbackLocale("")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void FallbackLocaleWithNullValueShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .FallbackLocale(null!)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void EmptyLocaleShouldNotSuppressOtherParameters()
+    {
+        var params_ = new QueryBuilder()
+            .Locale("")
+            .Limit(5)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("limit=5", actual);
+    }
+
+    [Fact]
+    public void SortWithWhitespaceFieldShouldBeSentAsGiven()
+    {
+        var params_ = new QueryBuilder()
+            .Sort(" ")
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("sort=%20", actual);
+    }
+
+    [Fact]
     public void PopulateShouldSerializeAsCollectionKeyedSelectShape()
     {
         var params_ = new QueryBuilder()

@@ -1,4 +1,4 @@
-using PayloadCMS.DotNet.Enums;
+﻿using PayloadCMS.DotNet.Enums;
 
 namespace PayloadCMS.DotNet.Query;
 
@@ -68,11 +68,17 @@ public class QueryBuilder
     /// <summary>
     /// Sorts results ascending by the given field.
     /// <para>Can be called multiple times for multi-field sorts.</para>
+    /// <para>An empty field name is ignored.</para>
     /// </summary>
     /// <param name="field">The field name to sort by.</param>
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder Sort(string field)
     {
+        if (string.IsNullOrEmpty(field))
+        {
+            return this;
+        }
+
         if (_sort == null)
         {
             _sort = field;
@@ -88,14 +94,18 @@ public class QueryBuilder
     /// <summary>
     /// Sorts results descending by the given field.
     /// <para>Automatically prefixes the field with <c>-</c> if needed.</para>
+    /// <para>An empty field name is ignored.</para>
     /// </summary>
     /// <param name="field">The field name to sort by.</param>
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder SortByDescending(string field)
     {
-        var sortField = field.StartsWith('-') ? field : $"-{field}";
+        if (!string.IsNullOrEmpty(field) && !field.StartsWith('-'))
+        {
+            field = $"-{field}";
+        }
 
-        return Sort(sortField);
+        return Sort(field);
     }
 
     /// <summary>
@@ -112,11 +122,17 @@ public class QueryBuilder
 
     /// <summary>
     /// Sets the <c>locale</c> for querying localized fields.
+    /// <para>An empty value is ignored.</para>
     /// </summary>
     /// <param name="value">A locale string (e.g. <c>en</c>, <c>sv</c>).</param>
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder Locale(string value)
     {
+        if (string.IsNullOrEmpty(value))
+        {
+            return this;
+        }
+
         _locale = value;
 
         return this;
@@ -124,11 +140,17 @@ public class QueryBuilder
 
     /// <summary>
     /// Sets a <c>fallback locale</c> when localized values are missing.
+    /// <para>An empty value is ignored.</para>
     /// </summary>
     /// <param name="value">A fallback locale string (e.g. <c>en</c>).</param>
     /// <returns>The current builder for chaining.</returns>
     public QueryBuilder FallbackLocale(string value)
     {
+        if (string.IsNullOrEmpty(value))
+        {
+            return this;
+        }
+
         _fallbackLocale = value;
 
         return this;

@@ -1,4 +1,4 @@
-using PayloadCMS.DotNet.Internal;
+﻿using PayloadCMS.DotNet.Internal;
 
 namespace PayloadCMS.DotNet.Query;
 
@@ -20,6 +20,8 @@ public class SelectBuilder
     /// <summary>
     /// Marks fields for inclusion in the response.
     /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
+    /// <para>Fields with an empty name or an empty path segment (e.g. <c>""</c>,
+    /// <c>"group..number"</c>, <c>".number"</c>) are ignored.</para>
     /// </summary>
     /// <param name="fields">Field names to include.</param>
     /// <returns>The current builder for chaining.</returns>
@@ -27,7 +29,19 @@ public class SelectBuilder
     {
         foreach (var field in fields)
         {
-            _clauses.Add(new SelectClause(field.Split('.'), true));
+            if (string.IsNullOrEmpty(field))
+            {
+                continue;
+            }
+
+            var segments = field.Split('.');
+
+            if (HasEmptySegment(segments))
+            {
+                continue;
+            }
+
+            _clauses.Add(new SelectClause(segments, true));
         }
 
         return this;
@@ -36,6 +50,8 @@ public class SelectBuilder
     /// <summary>
     /// Marks fields for exclusion from the response.
     /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
+    /// <para>Fields with an empty name or an empty path segment (e.g. <c>""</c>,
+    /// <c>"group..number"</c>, <c>".number"</c>) are ignored.</para>
     /// </summary>
     /// <param name="fields">Field names to exclude.</param>
     /// <returns>The current builder for chaining.</returns>
@@ -43,7 +59,19 @@ public class SelectBuilder
     {
         foreach (var field in fields)
         {
-            _clauses.Add(new SelectClause(field.Split('.'), false));
+            if (string.IsNullOrEmpty(field))
+            {
+                continue;
+            }
+
+            var segments = field.Split('.');
+
+            if (HasEmptySegment(segments))
+            {
+                continue;
+            }
+
+            _clauses.Add(new SelectClause(segments, false));
         }
 
         return this;
@@ -68,6 +96,19 @@ public class SelectBuilder
         }
 
         return result;
+    }
+
+    private static bool HasEmptySegment(string[] segments)
+    {
+        foreach (var segment in segments)
+        {
+            if (string.IsNullOrEmpty(segment))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void MergeSelectClauses(Dictionary<string, object?> target, Dictionary<string, object?> source)

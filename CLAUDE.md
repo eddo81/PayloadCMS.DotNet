@@ -50,6 +50,21 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
   ("mirrors TS...") in the library source — that belongs in `PROJECT_GUIDELINES.md`. Same rule for
   `README.md`: public API + usage examples only, no Payload-core internals tutorial (link to
   official docs or `PROJECT_GUIDELINES.md` instead) and no design-rationale content.
+- **Builder input guards** (2026-09-13) — use `string.IsNullOrEmpty(x)` as the guard idiom, never
+  `x == ""` and never `IsNullOrWhiteSpace` (whitespace is deliberately passed through — the official
+  SDK's truthiness test treats `" "` as a real value, and `?sort=%20` is accepted by Payload). Guards
+  **no-op silently**; they never throw. Whether a parameter may be guarded at all is decided by this
+  rule:
+
+  > A guard is wrong when it replaces a server error with silence. It is right when the server's
+  > behaviour is identical to skipping, or when skipping cannot change *which documents* are returned.
+
+  So `Sort`, `SortByDescending`, `Locale`, `FallbackLocale`, `Select`, `Exclude` and `Populate` skip
+  empty/null input (skipping them yields default ordering or a wider field set — conservative), while
+  `Where` is deliberately **not** guarded: skipping a `where` clause removes a filter and returns *more
+  documents*, and Payload already answers an empty field path with a diagnosable HTTP 400. Do not
+  "complete" the set by adding a `Where` guard. Full reasoning and live measurements: `LIBRARY.md`
+  item 13.
 
 ## Key Conventions
 - `internal` for everything under `lib/internal/` (contracts, clauses, utils, upload)

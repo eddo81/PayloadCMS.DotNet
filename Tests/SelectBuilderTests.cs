@@ -90,4 +90,120 @@ public class SelectBuilderTests
 
         Assert.Equal("select[title]=true&select[author]=true", actual);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("a..b")]
+    [InlineData(".title")]
+    [InlineData("title.")]
+    public void SelectWithEmptyFieldOrEmptyPathSegmentShouldProduceNoOutput(string field)
+    {
+        var params_ = new QueryBuilder()
+            .Select(new[] { field })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void SelectShouldKeepValidFieldsWhenAnotherFieldIsSkipped()
+    {
+        var params_ = new QueryBuilder()
+            .Select(new[] { "title", "a..b", "group.number" })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("select[title]=true&select[group][number]=true", actual);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("a..b")]
+    [InlineData(".title")]
+    [InlineData("title.")]
+    public void ExcludeWithEmptyFieldOrEmptyPathSegmentShouldProduceNoOutput(string field)
+    {
+        var params_ = new QueryBuilder()
+            .Exclude(new[] { field })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void ExcludeShouldKeepValidFieldsWhenAnotherFieldIsSkipped()
+    {
+        var params_ = new QueryBuilder()
+            .Exclude(new[] { "content", "a..b" })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("select[content]=false", actual);
+    }
+
+    [Fact]
+    public void SelectWithNullFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Select(new string[] { null! })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void ExcludeWithNullFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Exclude(new string[] { null! })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void SelectShouldKeepValidFieldsWhenANullFieldIsSkipped()
+    {
+        var params_ = new QueryBuilder()
+            .Select(new string[] { "title", null! })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("select[title]=true", actual);
+    }
+
+    [Fact]
+    public void PopulateWithEmptyFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Populate("users", new[] { "" })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void LimitZeroShouldStillSerialize()
+    {
+        var params_ = new QueryBuilder()
+            .Limit(0)
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("limit=0", actual);
+    }
 }

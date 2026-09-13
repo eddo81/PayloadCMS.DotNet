@@ -115,6 +115,68 @@ public class JoinBuilderTests
     }
 
     [Fact]
+    public void JoinBuilderSortByDescendingWithEmptyFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder.SortByDescending("posts", "");
+            })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void JoinBuilderSortByDescendingWithNullFieldShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder.SortByDescending("posts", null!);
+            })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
+    }
+
+    [Fact]
+    public void JoinBuilderSortByDescendingWithAlreadyPrefixedFieldShouldNotDoublePrefix()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder.SortByDescending("posts", "-title");
+            })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("joins[posts][sort]=-title", actual);
+    }
+
+    [Fact]
+    public void JoinBuilderSortByDescendingWithEmptyFieldShouldNotCreateAClause()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder
+                    .Limit("posts", 2)
+                    .SortByDescending("posts", "");
+            })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("joins[posts][limit]=2", actual);
+    }
+
+    [Fact]
     public void JoinBuilderShouldAccumulateMultipleWhereOnDifferentFields()
     {
         var params_ = new QueryBuilder()

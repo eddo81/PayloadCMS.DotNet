@@ -23,7 +23,7 @@ public class JoinBuilder
     /// <returns>The clause instance, or <c>null</c> if <c>on</c> is empty.</returns>
     private JoinClause? GetOrCreateClause(string on)
     {
-        if (on == "")
+        if (string.IsNullOrEmpty(on))
         {
             return null;
         }
@@ -96,13 +96,14 @@ public class JoinBuilder
 
     /// <summary>
     /// Sorts joined documents ascending by the given field.
+    /// <para>An empty field name is ignored.</para>
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="field">The field name to sort by.</param>
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder Sort(string on, string field)
     {
-        if (field == "")
+        if (string.IsNullOrEmpty(field))
         {
             return this;
         }
@@ -120,15 +121,19 @@ public class JoinBuilder
     /// <summary>
     /// Sorts joined documents descending by the given field.
     /// <para>Automatically prefixes the field with <c>-</c> if needed.</para>
+    /// <para>An empty field name is ignored.</para>
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="field">The field name to sort by.</param>
     /// <returns>The current builder for chaining.</returns>
     public JoinBuilder SortByDescending(string on, string field)
     {
-        var sortField = field.StartsWith('-') ? field : $"-{field}";
+        if (!string.IsNullOrEmpty(field) && !field.StartsWith('-'))
+        {
+            field = $"-{field}";
+        }
 
-        return Sort(on, sortField);
+        return Sort(on, field);
     }
 
     /// <summary>

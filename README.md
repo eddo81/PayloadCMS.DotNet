@@ -871,7 +871,7 @@ var query = new QueryBuilder()
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);
 
-// Serializes to: ?limit=10&page=2&sort=createdAt&where[status][equals]=published
+// Serializes to: ?limit=10&page=2&sort=createdAt&where[_status][equals]=published
 ```
 
 ### Limit
@@ -1186,7 +1186,7 @@ var query = new QueryBuilder()
     .Where("_status", Operator.Equals, "published")
     .Where("views", Operator.GreaterThan, 100);
 
-// Serializes to: ?where[status][equals]=published&where[views][greater_than]=100
+// Serializes to: ?where[_status][equals]=published&where[views][greater_than]=100
 ```
 
 The `Operator` enum supports the following type of comparisons.
@@ -1268,7 +1268,7 @@ var query = new QueryBuilder()
             .Where("category", Operator.Equals, "blog");
     });
 
-// Serializes to: ?where[status][equals]=published&where[or][0][category][equals]=news&where[or][1][category][equals]=blog
+// Serializes to: ?where[_status][equals]=published&where[or][0][category][equals]=news&where[or][1][category][equals]=blog
 ```
 
 ### Join
@@ -1301,18 +1301,17 @@ Inside the callback:
 | `And` | `string on, Action<WhereBuilder> callback` | Nested AND group on joined documents. |
 | `Or` | `string on, Action<WhereBuilder> callback` | Nested OR group on joined documents. |
 | `Disable` | — | Turn off all join fields for this query. |
-| `IsDisabled` | — | (getter) Whether joins have been disabled. |
 
 #### Example
 ```csharp
-// Posts, each with their 5 newest approved comments
+// Posts, each with their 5 newest comments mentioning "hello"
 var query = new QueryBuilder()
     .Join(join =>
     {
         join
             .Limit("comments", 5)
             .SortByDescending("comments", "createdAt")
-            .Where("comments", "status", Operator.Equals, "approved");
+            .Where("comments", "content", Operator.Contains, "hello");
     });
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);

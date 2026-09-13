@@ -1,4 +1,4 @@
-namespace PayloadCMS.DotNet.Query;
+﻿namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Fluent builder for Payload CMS <c>populate</c> query parameters.
@@ -27,7 +27,7 @@ public class PopulateBuilder
     /// <returns>The current builder for chaining.</returns>
     public PopulateBuilder Populate(string collection, string[] fields)
     {
-        if (collection == "")
+        if (string.IsNullOrEmpty(collection))
         {
             return this;
         }
