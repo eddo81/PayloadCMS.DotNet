@@ -186,6 +186,36 @@ public class PayloadSDKTests
         Assert.Contains("My image", payloadText);
     }
 
+    [Fact]
+    public async Task Create_WithFileAndNoMimeType_DeclaresOctetStreamOnTheFilePart()
+    {
+        const string json = """
+            { "doc": { "id": "new1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+            """;
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, json);
+
+        var data = new Dictionary<string, object?> { ["alt"] = "My image" };
+        var file = new PayloadCMS.DotNet.Upload.FileUpload(new byte[] { 1, 2, 3 }, "photo.png");
+        await sdk.Create("media", data, file: file);
+
+        var multipart = Assert.IsType<MultipartFormDataContent>(handler.LastRequest!.Content);
+        HttpContent? filePart = null;
+
+        foreach (var part in multipart)
+        {
+            if (part.Headers.ContentDisposition!.Name!.Trim('"') == "file")
+            {
+                filePart = part;
+            }
+        }
+
+        // A part with no Content-Type is read as text/plain by the server, which is then stored as
+        // the document's mimeType. The file part must always declare something.
+        Assert.NotNull(filePart);
+        Assert.NotNull(filePart!.Headers.ContentType);
+        Assert.Equal("application/octet-stream", filePart.Headers.ContentType!.MediaType);
+    }
+
     // ── UpdateById ──────────────────────────────────────────────
 
     [Fact]

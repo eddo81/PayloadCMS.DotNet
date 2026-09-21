@@ -18,10 +18,7 @@ internal class FormDataBuilder
 
         var fileContent = new ByteArrayContent(content: file.Content);
 
-        if (file.MimeType != null)
-        {
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.MimeType);
-        }
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.MimeType);
 
         formData.Add(name: "file", content: fileContent, fileName: file.FileName);
 

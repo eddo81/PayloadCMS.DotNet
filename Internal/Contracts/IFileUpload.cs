@@ -11,6 +11,6 @@ internal interface IFileUpload
     /// <value>The filename to use for the upload (e.g., "photo.jpg").</value>
     string FileName { get; }
 
-    /// <value>Optional MIME type (e.g., "image/jpeg"). If omitted, the content's type is used as-is.</value>
-    string? MimeType { get; } 
+    /// <value>The MIME type (e.g., "image/jpeg"). Defaults to <c>application/octet-stream</c>.</value>
+    string MimeType { get; } 
 }
