@@ -164,7 +164,7 @@ DocumentDTO document = await sdk.Create("posts", data);
 
 Represents a file being uploaded to an upload-enabled collection. It is accepted by `Create`, `UpdateById`, and the bulk `Update` through their `file` parameter.
 
-Supplying a file changes how the request is sent: instead of a JSON body, the SDK sends multipart form data, with the file bytes in a `file` part and the document data in a `_payload` part. Setting `mimeType` applies that content type to the file part; it can be omitted.
+Supplying a file changes how the request is sent: instead of a JSON body, the SDK sends multipart form data, with the file bytes in a `file` part and the document data in a `_payload` part. Setting `mimeType` applies that content type to the file part. If omitted, `application/octet-stream` is sent — the file part always declares a type.
 
 ```csharp
 new FileUpload(byte[] content, string fileName, string? mimeType = null)
@@ -174,7 +174,7 @@ new FileUpload(byte[] content, string fileName, string? mimeType = null)
 |-----------|------|-------------|
 | `content` | `byte[]` | The file content. |
 | `fileName` | `string` | The filename (including extension). |
-| `mimeType` | `string?` | Optional MIME type (e.g. `image/png`). |
+| `mimeType` | `string?` | Optional MIME type (e.g. `image/png`). Defaults to `application/octet-stream`. |
 
 #### Example
 ```csharp
