@@ -1179,6 +1179,8 @@ QueryBuilder Where(string field, Operator op, object? value)
 | `op` | `Operator` | Comparison to apply. |
 | `value` | `object?` | Value to compare against. |
 
+> **Dates:** `DateTime` values are serialized as UTC ISO 8601 timestamps with millisecond precision, e.g. `2026-03-01T12:30:45.000Z`. Local values are converted to UTC; unspecified values are treated as UTC.
+
 #### Example
 ```csharp
 // Published posts with more than 100 views

@@ -206,7 +206,7 @@ internal class QueryStringEncoder
     {
         if (value is DateTime dt)
         {
-            return $"{key}={SafeEncode(dt.ToString("O"))}";
+            return $"{key}={SafeEncode(DateSerializer.Serialize(dt))}";
         }
 
         // Serialize bool as lowercase "true"/"false" — C# ToString() gives "True"/"False".

@@ -1,4 +1,6 @@
-﻿namespace Payload.CMS.Tests;
+﻿using System.Globalization;
+
+namespace Payload.CMS.Tests;
 
 public class QueryStringEncoderTests
 {
@@ -56,8 +58,71 @@ public class QueryStringEncoderTests
         var obj = new Dictionary<string, object?> { ["createdAt"] = date };
         var queryString = _encoder.Stringify(obj);
 
-        // C# "O" format: 2024-01-01T12:00:00.0000000Z  — colons become %3A
-        Assert.Equal("createdAt=2024-01-01T12%3A00%3A00.0000000Z", queryString);
+        // 2024-01-01T12:00:00.000Z — colons become %3A
+        Assert.Equal("createdAt=2024-01-01T12%3A00%3A00.000Z", queryString);
+    }
+
+    [Fact]
+    public void ShouldTreatDatesWithNoKindAsUtc()
+    {
+        // DateTimeKind.Unspecified — the default for a DateTime built this way.
+        var date = new DateTime(2024, 1, 1, 12, 0, 0);
+        var obj = new Dictionary<string, object?> { ["createdAt"] = date };
+        var queryString = _encoder.Stringify(obj);
+
+        // The reading is kept as written and labelled UTC — no timezone conversion applies.
+        Assert.Equal("createdAt=2024-01-01T12%3A00%3A00.000Z", queryString);
+    }
+
+    [Fact]
+    public void ShouldConvertLocalDatesToUtc()
+    {
+        var date = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Local);
+        var obj = new Dictionary<string, object?> { ["createdAt"] = date };
+        var queryString = _encoder.Stringify(obj);
+
+        // A literal expectation here would depend on the machine's timezone and break on a UTC
+        // build agent, so assert the instant instead: whatever was emitted must reparse to the
+        // same moment the caller supplied.
+        var emitted = Uri.UnescapeDataString(queryString.Replace("createdAt=", ""));
+        var reparsed = DateTime.Parse(emitted, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+        Assert.EndsWith("Z", emitted);
+        Assert.Equal(date.ToUniversalTime(), reparsed);
+    }
+
+    [Fact]
+    public void ShouldTruncateRatherThanRoundSubMillisecondDates()
+    {
+        // 0.9999 of a millisecond past the second: truncation gives .000, rounding would give .001.
+        var date = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc).AddTicks(9999);
+        var obj = new Dictionary<string, object?> { ["createdAt"] = date };
+        var queryString = _encoder.Stringify(obj);
+
+        Assert.Equal("createdAt=2024-01-01T12%3A00%3A00.000Z", queryString);
+    }
+
+    [Fact]
+    public void ShouldEncodeDatesIndependentlyOfTheAmbientCulture()
+    {
+        // Under fi-FI the time separator is "." rather than ":", so a date formatted without an
+        // explicit culture yields 2024-01-01T12.00.00.000Z.
+        var originalCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fi-FI");
+
+            var date = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+            var obj = new Dictionary<string, object?> { ["createdAt"] = date };
+            var queryString = _encoder.Stringify(obj);
+
+            Assert.Equal("createdAt=2024-01-01T12%3A00%3A00.000Z", queryString);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]
