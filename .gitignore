@@ -39,5 +39,6 @@ nupkg/
 LIBRARY.md
 TYPESCRIPT_BACKPORT.md
 PROJECT_GUIDELINES.md
+PORTING_GUIDE.md
 .mcp.json
 *.lscache

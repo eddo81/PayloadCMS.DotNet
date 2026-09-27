@@ -72,7 +72,7 @@ internal class QueryStringEncoder
     /// <returns><c>true</c> if serializable as a terminal node.</returns>
     private bool IsPrimitive(object? value)
     {
-        return value is string or int or long or double or float or decimal or bool or DateTime;
+        return value is string || value is int || value is long || value is double || value is float || value is decimal || value is bool || value is char || DateSerializer.IsDateType(value) || value is Guid;
     }
 
     /// <summary>
@@ -97,16 +97,18 @@ internal class QueryStringEncoder
 
         foreach (var (key, value) in obj)
         {
-            // Skip null entries.
-            if (value is null)
-            {
-                continue;
-            }
-
             // Build the current key path, preserving bracket notation.
             var encodedKey = string.IsNullOrEmpty(parentKey)
                 ? SafeEncode(key)
                 : $"{parentKey}[{SafeEncode(key)}]";
+
+            // A null keeps its key and renders as an empty value. Dropping it would remove the
+            // filter and return more documents than the caller asked for.
+            if (value is null)
+            {
+                segments.Add($"{encodedKey}=");
+                continue;
+            }
 
             // Handle primitive values first — these are terminal nodes in the structure.
             if (IsPrimitive(value))
@@ -137,7 +139,7 @@ internal class QueryStringEncoder
                 continue;
             }
 
-            // Unsupported types are skipped implicitly.
+            // Values with no unambiguous textual form are skipped.
         }
 
         var joined = string.Join("&", segments);
@@ -157,9 +159,10 @@ internal class QueryStringEncoder
             var value = arr[i];
             var elementKey = $"{parentKey}[{i}]";
 
-            // Skip null entries.
+            // A null keeps its key and renders as an empty value.
             if (value is null)
             {
+                segments.Add($"{elementKey}=");
                 continue;
             }
 
@@ -192,7 +195,7 @@ internal class QueryStringEncoder
                 continue;
             }
 
-            // Unsupported types are skipped implicitly.
+            // Values with no unambiguous textual form are skipped.
         }
     }
 
@@ -204,9 +207,9 @@ internal class QueryStringEncoder
     /// <returns>A <c>key=value</c> string, or <c>null</c> if unsupported.</returns>
     private string? SerializePrimitive(string key, object? value)
     {
-        if (value is DateTime dt)
+        if (DateSerializer.IsDateType(value))
         {
-            return $"{key}={SafeEncode(DateSerializer.Serialize(dt))}";
+            return $"{key}={SafeEncode(DateSerializer.Serialize(value))}";
         }
 
         // Serialize bool as lowercase "true"/"false" — C# ToString() gives "True"/"False".

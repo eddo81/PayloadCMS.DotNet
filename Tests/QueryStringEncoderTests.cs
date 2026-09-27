@@ -126,32 +126,117 @@ public class QueryStringEncoderTests
     }
 
     [Fact]
-    public void ShouldSkipNullValues()
+    public void ShouldRenderNullAsAnEmptyValue()
     {
         var obj = new Dictionary<string, object?>
         {
             ["keep"] = "yes",
-            ["skip"] = null
+            ["empty"] = null
         };
         var queryString = _encoder.Stringify(obj);
 
-        Assert.Equal("keep=yes", queryString);
+        // The key survives. Dropping it would remove the filter and widen the result set.
+        Assert.Equal("keep=yes&empty=", queryString);
+    }
+
+    [Fact]
+    public void ShouldRenderNestedNullAsAnEmptyValue()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["views"] = new Dictionary<string, object?> { ["equals"] = null }
+            }
+        };
+        var queryString = _encoder.Stringify(obj);
+
+        Assert.Equal("where[views][equals]=", queryString);
+    }
+
+    [Fact]
+    public void ShouldRenderNullArrayElementsAsEmptyValues()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["ids"] = new List<object?> { null, 1 }
+        };
+        var queryString = _encoder.Stringify(obj);
+
+        // The index must stay aligned with the caller's list, so the empty element is emitted
+        // rather than collapsed away.
+        Assert.Equal("ids[0]=&ids[1]=1", queryString);
     }
 
     [Fact]
     public void ShouldSkipUnsupportedTypes()
     {
-        // In C# the unsupported-type equivalents are anything not in the
-        // _isPrimitive set (string, int, long, double, float, decimal, bool, DateTime).
-        // Guid and anonymous objects are skipped.
+        // A type is serialized only when it has one unambiguous textual form. TimeOnly drops its
+        // seconds, TimeSpan is not an ISO 8601 duration, an enum could be a name or a number, and
+        // an arbitrary object has no textual form at all — so all four are skipped.
         var obj = new Dictionary<string, object?>
         {
             ["ok"] = "fine",
-            ["nope"] = Guid.NewGuid()
+            ["time"] = new TimeOnly(12, 30, 45),
+            ["duration"] = TimeSpan.FromMinutes(90),
+            ["day"] = DayOfWeek.Sunday,
+            ["object"] = new { nested = 1 }
         };
         var queryString = _encoder.Stringify(obj);
 
         Assert.Equal("ok=fine", queryString);
+    }
+
+    [Fact]
+    public void ShouldEncodeGuidValues()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["id"] = Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301")
+        };
+        var queryString = _encoder.Stringify(obj);
+
+        Assert.Equal("id=3f2504e0-4f89-11d3-9a0c-0305e82c3301", queryString);
+    }
+
+    [Fact]
+    public void ShouldEncodeCharValues()
+    {
+        var obj = new Dictionary<string, object?> { ["grade"] = 'A' };
+        var queryString = _encoder.Stringify(obj);
+
+        Assert.Equal("grade=A", queryString);
+    }
+
+    [Fact]
+    public void ShouldEncodeDateTimeOffsetValuesAsUtc()
+    {
+        var value = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.FromHours(2));
+        var obj = new Dictionary<string, object?> { ["createdAt"] = value };
+        var queryString = _encoder.Stringify(obj);
+
+        // The offset is resolved, so 12:00 at +02:00 becomes 10:00Z.
+        Assert.Equal("createdAt=2024-01-01T10%3A00%3A00.000Z", queryString);
+    }
+
+    [Fact]
+    public void ShouldEncodeDateTimeOffsetWithZeroOffsetUsingZ()
+    {
+        var value = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var obj = new Dictionary<string, object?> { ["createdAt"] = value };
+        var queryString = _encoder.Stringify(obj);
+
+        // Formatting the value directly would yield "+00:00" here rather than "Z".
+        Assert.Equal("createdAt=2024-01-01T12%3A00%3A00.000Z", queryString);
+    }
+
+    [Fact]
+    public void ShouldEncodeDateOnlyValues()
+    {
+        var obj = new Dictionary<string, object?> { ["publishedOn"] = new DateOnly(2024, 1, 1) };
+        var queryString = _encoder.Stringify(obj);
+
+        Assert.Equal("publishedOn=2024-01-01", queryString);
     }
 
     [Fact]
