@@ -21,20 +21,25 @@ dotnet add package PayloadCMS.DotNet
 using PayloadCMS.DotNet;
 
 var httpClient = new System.Net.Http.HttpClient();
-var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+var sdk = new PayloadSDK(httpClient: httpClient, baseUrl: "http://localhost:3000");
 ```
 
 ### ASP.NET Core DI
 
 ```csharp
 // Program.cs
-builder.Services.AddPayloadSDK("https://cms.example.com");
+builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com");
 
 // Or with custom HttpClient configuration:
-builder.Services.AddPayloadSDK("https://cms.example.com", httpClient =>
+builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com", configureClient: httpClient =>
 {
     httpClient.Timeout = TimeSpan.FromSeconds(30);
 });
+
+// Or with SDK configuration:
+var config = new PayloadSDKConfig { StrictEncoding = false };
+
+builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com", config: config);
 ```
 
 Inject `PayloadSDK` directly into controllers or services — it is registered as a scoped service backed by a named `IHttpClientFactory`-managed `HttpClient`. Each HTTP request gets its own `PayloadSDK` instance, which means `SetJwtAuth()`, `SetApiKeyAuth()`, and `ClearAuth()` are safe to call per-request without affecting other concurrent users.
@@ -44,7 +49,8 @@ Inject `PayloadSDK` directly into controllers or services — it is registered a
 ```csharp
 new PayloadSDK(
     System.Net.Http.HttpClient httpClient,
-    string baseUrl
+    string baseUrl,
+    PayloadSDKConfig? config = null
 )
 ```
 
@@ -52,6 +58,7 @@ new PayloadSDK(
 |-----------|------|-------------|
 | `httpClient` | `HttpClient` | The HTTP client instance to use. Caller owns the lifetime. |
 | `baseUrl` | `string` | Payload CMS instance URL. Trailing slashes are stripped automatically. |
+| `config` | `PayloadSDKConfig?` | Optional settings that apply to every request an SDK instance makes, omit it to use the defaults. |
 
 ## Collections
 
@@ -871,7 +878,7 @@ var query = new QueryBuilder()
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);
 
-// Serializes to: ?limit=10&page=2&sort=createdAt&where[_status][equals]=published
+// Serializes to: ?limit=10&page=2&sort=createdAt&where%5B_status%5D%5Bequals%5D=published
 ```
 
 ### Limit
@@ -975,7 +982,7 @@ var query = new QueryBuilder()
     .Sort("category")
     .Sort("title");
 
-// Serializes to: ?sort=category,title
+// Serializes to: ?sort=category%2Ctitle
 ```
 
 ### SortByDescending
@@ -999,7 +1006,7 @@ var query = new QueryBuilder()
     .SortByDescending("featured")
     .SortByDescending("createdAt");
 
-// Serializes to: ?sort=-featured,-createdAt
+// Serializes to: ?sort=-featured%2C-createdAt
 ```
 
 ### Depth
@@ -1049,13 +1056,13 @@ QueryBuilder Select(string[] fields)
 var query = new QueryBuilder()
     .Select(new[] { "title", "createdAt" });
 
-// Serializes to: ?select[title]=true&select[createdAt]=true
+// Serializes to: ?select%5Btitle%5D=true&select%5BcreatedAt%5D=true
 
 // Nested fields via dot notation
 var nested = new QueryBuilder()
     .Select(new[] { "title", "group.number" });
 
-// Serializes to: ?select[title]=true&select[group][number]=true
+// Serializes to: ?select%5Btitle%5D=true&select%5Bgroup%5D%5Bnumber%5D=true
 ```
 
 ### Exclude
@@ -1116,7 +1123,7 @@ var query = new QueryBuilder()
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);
 
-// Serializes to: ?depth=1&populate[users][name]=true
+// Serializes to: ?depth=1&populate%5Busers%5D%5Bname%5D=true
 ```
 
 ### Locale
@@ -1188,7 +1195,7 @@ var query = new QueryBuilder()
     .Where("_status", Operator.Equals, "published")
     .Where("views", Operator.GreaterThan, 100);
 
-// Serializes to: ?where[_status][equals]=published&where[views][greater_than]=100
+// Serializes to: ?where%5B_status%5D%5Bequals%5D=published&where%5Bviews%5D%5Bgreater_than%5D=100
 ```
 
 The `Operator` enum supports the following type of comparisons.
@@ -1270,7 +1277,7 @@ var query = new QueryBuilder()
             .Where("category", Operator.Equals, "blog");
     });
 
-// Serializes to: ?where[_status][equals]=published&where[or][0][category][equals]=news&where[or][1][category][equals]=blog
+// Serializes to: ?where%5B_status%5D%5Bequals%5D=published&where%5Bor%5D%5B0%5D%5Bcategory%5D%5Bequals%5D=news&where%5Bor%5D%5B1%5D%5Bcategory%5D%5Bequals%5D=blog
 ```
 
 ### Join

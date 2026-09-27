@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using PayloadCMS.DotNet.Config;
 
 namespace PayloadCMS.DotNet.Extensions;
 
@@ -13,9 +14,10 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection to add the SDK to.</param>
     /// <param name="baseUrl">The base URL of the Payload CMS instance (e.g. <c>https://cms.example.com</c>).</param>
+    /// <param name="config">Settings applied to every request the registered SDK makes. Defaults are used when omitted.</param>
     /// <param name="configureClient">Optional delegate to configure the underlying <see cref="System.Net.Http.HttpClient"/> (e.g. timeouts, default headers).</param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
-    public static IServiceCollection AddPayloadSDK(this IServiceCollection services, string baseUrl, Action<System.Net.Http.HttpClient>? configureClient = null) {
+    public static IServiceCollection AddPayloadSDK(this IServiceCollection services, string baseUrl, PayloadSDKConfig? config = null, Action<System.Net.Http.HttpClient>? configureClient = null) {
         services.AddHttpClient(nameof(PayloadSDK), httpClient =>
         {
             configureClient?.Invoke(httpClient);
@@ -26,7 +28,7 @@ public static class ServiceCollectionExtensions
             var factory = provider.GetRequiredService<System.Net.Http.IHttpClientFactory>();
             var httpClient = factory.CreateClient(nameof(PayloadSDK));
             
-            return new PayloadSDK(httpClient, baseUrl);
+            return new PayloadSDK(httpClient, baseUrl, config);
         });
 
         return services;

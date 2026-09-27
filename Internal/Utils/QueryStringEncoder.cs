@@ -20,7 +20,7 @@ internal class QueryStringEncoder
     /// Creates a new <see cref="QueryStringEncoder"/>.
     /// </summary>
     /// <param name="addQueryPrefix">Prefix output with <c>?</c>. Defaults to <c>true</c>.</param>
-    /// <param name="strictEncoding">Keep brackets and commas percent-encoded. Defaults to <c>false</c>.</param>
+    /// <param name="strictEncoding">Percent-encode brackets and commas. Defaults to <c>false</c>, which leaves [, ] and , literal.</param>
     public QueryStringEncoder(bool? addQueryPrefix = null, bool? strictEncoding = null)
     {
         _addQueryPrefix = addQueryPrefix ?? true;
@@ -42,6 +42,20 @@ internal class QueryStringEncoder
         }
 
         return $"{_prefix}{result}";
+    }
+
+    /// <summary>
+    /// Appends a bracketed key segment to a key path.
+    /// </summary>
+    /// <param name="parentKey">The accumulated key path, already encoded.</param>
+    /// <param name="segment">The segment to append, already encoded.</param>
+    /// <returns>The extended key path.</returns>
+    private string Bracket(string parentKey, string segment)
+    {
+        var openBracket = SafeEncode("[");
+        var closeBracket = SafeEncode("]");
+
+        return $"{parentKey}{openBracket}{segment}{closeBracket}";
     }
 
     /// <summary>
@@ -100,7 +114,7 @@ internal class QueryStringEncoder
             // Build the current key path, preserving bracket notation.
             var encodedKey = string.IsNullOrEmpty(parentKey)
                 ? SafeEncode(key)
-                : $"{parentKey}[{SafeEncode(key)}]";
+                : Bracket(parentKey, SafeEncode(key));
 
             // A null keeps its key and renders as an empty value. Dropping it would remove the
             // filter and return more documents than the caller asked for.
@@ -157,7 +171,7 @@ internal class QueryStringEncoder
         for (int i = 0; i < arr.Count; i++)
         {
             var value = arr[i];
-            var elementKey = $"{parentKey}[{i}]";
+            var elementKey = Bracket(parentKey, i.ToString(CultureInfo.InvariantCulture));
 
             // A null keeps its key and renders as an empty value.
             if (value is null)

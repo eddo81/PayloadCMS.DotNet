@@ -44,11 +44,11 @@ internal sealed class MockHandler : HttpMessageHandler
 /// </summary>
 internal static class SdkFactory
 {
-    internal static (PayloadSDK Sdk, MockHandler Handler) Create(HttpStatusCode statusCode, string responseBody)
+    internal static (PayloadSDK Sdk, MockHandler Handler) Create(HttpStatusCode statusCode, string responseBody, PayloadSDKConfig? config = null)
     {
         var handler = new MockHandler(statusCode, responseBody);
         var httpClient = new HttpClient(handler);
-        var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+        var sdk = new PayloadSDK(httpClient, "http://localhost:3000", config);
 
         return (sdk, handler);
     }
@@ -57,6 +57,42 @@ internal static class SdkFactory
 public class PayloadSDKTests
 {
     // ── Find ────────────────────────────────────────────────────
+
+    // ── encoding configuration ──────────────────────────────────
+
+    private const string OnePageOfPosts = """
+        {
+          "docs": [{ "id": "abc123", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }],
+          "totalDocs": 1, "limit": 10, "totalPages": 1, "page": 1,
+          "pagingCounter": 1, "hasPrevPage": false, "hasNextPage": false,
+          "prevPage": null, "nextPage": null
+        }
+        """;
+
+    [Fact]
+    public async Task Find_WithDefaultConfig_PercentEncodesBrackets()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, OnePageOfPosts);
+
+        var query = new QueryBuilder().Where("title", Operator.Equals, "foo");
+        await sdk.Find("posts", query);
+
+        // The default is strict encoding, which is what qs-esm produces and what a Payload
+        // developer sees in the official documentation.
+        Assert.Contains("where%5Btitle%5D%5Bequals%5D=foo", handler.LastRequest!.RequestUri!.OriginalString);
+    }
+
+    [Fact]
+    public async Task Find_WithStrictEncodingDisabled_LeavesBracketsLiteral()
+    {
+        var config = new PayloadSDKConfig { StrictEncoding = false };
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, OnePageOfPosts, config);
+
+        var query = new QueryBuilder().Where("title", Operator.Equals, "foo");
+        await sdk.Find("posts", query);
+
+        Assert.Contains("where[title][equals]=foo", handler.LastRequest!.RequestUri!.OriginalString);
+    }
 
     [Fact]
     public async Task Find_ReturnsPaginatedDocsDTO()

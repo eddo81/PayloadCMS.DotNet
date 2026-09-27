@@ -20,7 +20,9 @@ public class PayloadSDK
     private string _baseUrl;
     private Dictionary<string, string> _headers = new();
     private IAuthCredential? _auth = null;
-    private readonly QueryStringEncoder _encoder = new();
+
+    private readonly PayloadSDKConfig _config;
+    private readonly QueryStringEncoder _encoder;
     private readonly HttpClient _httpClient;
 
     /// <summary>
@@ -31,10 +33,13 @@ public class PayloadSDK
     /// The caller is responsible for its lifetime and disposal.
     /// </param>
     /// <param name="baseUrl">The base URL of the Payload CMS instance (e.g. <c>https://cms.example.com</c>).</param>
-    public PayloadSDK(HttpClient httpClient, string baseUrl)
+    /// <param name="config">Settings applied to every request this instance makes. Defaults are used when omitted.</param>
+    public PayloadSDK(HttpClient httpClient, string baseUrl, PayloadSDKConfig? config = null)
     {
         _httpClient = httpClient;
         _baseUrl = NormalizeUrl(baseUrl);
+        _config = config ?? new ();
+        _encoder = new QueryStringEncoder( strictEncoding: _config.StrictEncoding );
     }
 
     /// <summary>

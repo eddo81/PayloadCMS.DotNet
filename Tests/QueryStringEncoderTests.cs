@@ -7,6 +7,10 @@ public class QueryStringEncoderTests
     // addQueryPrefix: false mirrors the TS test setup
     private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false);
 
+    // The expectations in the strict-encoding tests below are the literal output of `qs-esm` 7.0.2
+    // — the package Payload itself recommends — captured by running `stringify` on the same input.
+    private readonly QueryStringEncoder _strictEncoder = new(addQueryPrefix: false, strictEncoding: true);
+
     [Fact]
     public void ShouldSerializeFlatObject()
     {
@@ -237,6 +241,53 @@ public class QueryStringEncoderTests
         var queryString = _encoder.Stringify(obj);
 
         Assert.Equal("publishedOn=2024-01-01", queryString);
+    }
+
+    [Fact]
+    public void ShouldPercentEncodeStructuralBracketsInStrictMode()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["title"] = new Dictionary<string, object?> { ["equals"] = "foo" }
+            }
+        };
+
+        // The brackets the encoder generates itself, not ones that arrived in the data.
+        Assert.Equal("where%5Btitle%5D%5Bequals%5D=foo", _strictEncoder.Stringify(obj));
+        Assert.Equal("where[title][equals]=foo", _encoder.Stringify(obj));
+    }
+
+    [Fact]
+    public void ShouldPercentEncodeArrayIndexBracketsInStrictMode()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["or"] = new List<object?>
+                {
+                    new Dictionary<string, object?>
+                    {
+                        ["title"] = new Dictionary<string, object?> { ["equals"] = "foo" }
+                    }
+                }
+            }
+        };
+
+        Assert.Equal("where%5Bor%5D%5B0%5D%5Btitle%5D%5Bequals%5D=foo", _strictEncoder.Stringify(obj));
+        Assert.Equal("where[or][0][title][equals]=foo", _encoder.Stringify(obj));
+    }
+
+    [Fact]
+    public void ShouldPercentEncodeCommasInStrictMode()
+    {
+        var obj = new Dictionary<string, object?> { ["sort"] = "a,-b" };
+
+        // A comma that arrived in the data rather than one the encoder generated.
+        Assert.Equal("sort=a%2C-b", _strictEncoder.Stringify(obj));
+        Assert.Equal("sort=a,-b", _encoder.Stringify(obj));
     }
 
     [Fact]
