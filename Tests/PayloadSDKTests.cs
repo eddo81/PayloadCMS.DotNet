@@ -344,6 +344,79 @@ public class PayloadSDKTests
         Assert.Equal(HttpMethod.Patch, handler.LastRequest!.Method);
     }
 
+    // A partially-failing bulk operation is answered with 400, not 200 — the body shape below is
+    // the one Payload actually sends, captured from a live instance.
+    private const string PartialBulkFailure = """
+        {
+          "docs": [
+            { "id": "ok1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" },
+            { "id": "ok2", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" }
+          ],
+          "errors": [
+            { "id": "bad1", "message": "The following field is invalid: Parity Bulk Guard" }
+          ],
+          "message": "Something went wrong."
+        }
+        """;
+
+    [Fact]
+    public async Task Update_WhenSomeDocumentsFail_ReturnsTheResultInsteadOfThrowing()
+    {
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadRequest, PartialBulkFailure);
+
+        var data = new Dictionary<string, object?> { ["published"] = false };
+        var query = new QueryBuilder().Where("title", Operator.Equals, "Hello");
+        var result = await sdk.Update("posts", data, query);
+
+        // The documents that did update are the part a caller needs in order to recover.
+        Assert.Equal(2, result.Docs.Count);
+        Assert.Single(result.Errors);
+        Assert.Equal("bad1", result.Errors[0].Id);
+    }
+
+    [Fact]
+    public async Task Delete_WhenSomeDocumentsFail_ReturnsTheResultInsteadOfThrowing()
+    {
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadRequest, PartialBulkFailure);
+
+        var query = new QueryBuilder().Where("title", Operator.Equals, "Hello");
+        var result = await sdk.Delete("posts", query);
+
+        Assert.Equal(2, result.Docs.Count);
+        Assert.Single(result.Errors);
+    }
+
+    [Fact]
+    public async Task Update_WithAnOrdinaryBadRequest_StillThrows()
+    {
+        // No "docs" key, so this is a rejected request rather than a partial result.
+        const string json = """{ "errors": [{ "message": "Missing 'where' query." }] }""";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadRequest, json);
+
+        var data = new Dictionary<string, object?> { ["published"] = false };
+        var query = new QueryBuilder();
+
+        var error = await Assert.ThrowsAsync<PayloadError>(() => sdk.Update("posts", data, query));
+
+        Assert.Equal(400, error.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_WithANonJsonBadRequest_StillThrows()
+    {
+        // A proxy or gateway can answer with HTML. Inspecting the body must not turn this into a
+        // parse failure or a silent success.
+        const string html = "<html><body>400 Bad Request</body></html>";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadRequest, html);
+
+        var data = new Dictionary<string, object?> { ["published"] = false };
+        var query = new QueryBuilder();
+
+        var error = await Assert.ThrowsAsync<PayloadError>(() => sdk.Update("posts", data, query));
+
+        Assert.Equal(400, error.StatusCode);
+    }
+
     // ── Delete (bulk) ───────────────────────────────────────────
 
     [Fact]

@@ -230,7 +230,7 @@ DocumentDTO document = await sdk.UpdateById("posts", "123", data);
 
 ### Update
 
-Bulk-updates all documents matching a query. Supports file uploads.
+Bulk-updates all documents matching a query. Supports file uploads. If some documents cannot be updated the operation does not throw: `Docs` carries those that were written, `Errors` the rest.
 
 ```csharp
 Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
@@ -255,6 +255,11 @@ var data = new Dictionary<string, object?>
 };
 
 BulkOperationDTO result = await sdk.Update("posts", data, query);
+
+if (result.Errors.Count > 0)
+{
+    // Some documents were not updated — result.Docs holds the ones that were.
+}
 ```
 
 ### Delete by ID
@@ -279,7 +284,7 @@ DocumentDTO document = await sdk.DeleteById("posts", "123");
 
 ### Delete
 
-Bulk-deletes all documents matching a query.
+Bulk-deletes all documents matching a query. As with `Update`, a partial failure returns the result rather than throwing.
 
 ```csharp
 Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
@@ -1444,7 +1449,7 @@ See [Error Handling](#error-handling) for usage examples.
 
 ## Error Handling
 
-`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code.
+`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code. The one exception is a bulk `Update` or `Delete` that partly succeeded — see [Update](#update).
 
 ```csharp
 public class PayloadError : Exception

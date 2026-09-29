@@ -7,7 +7,8 @@ namespace PayloadCMS.DotNet;
 /// A structured error thrown on failed Payload CMS requests.
 /// <para>Captures the HTTP status code, the originating response, the raw response
 /// body, and a typed list of error entries parsed from that body.</para>
-/// <para>Thrown by <see cref="PayloadSDK"/> on non-2xx responses.</para>
+/// <para>Thrown by <see cref="PayloadSDK"/> on non-2xx responses, except a bulk
+/// <c>Update</c> or <c>Delete</c> that partly succeeded — those return their result instead.</para>
 /// </summary>
 public class PayloadError : Exception
 {

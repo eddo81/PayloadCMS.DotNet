@@ -314,14 +314,32 @@ public class PayloadSDK
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="query"><see cref="QueryBuilder"/> with <c>where</c> clause to select documents.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
-    /// <returns>The bulk result containing deleted documents.</returns>
+    /// <returns>
+    /// The bulk result containing deleted documents. When some documents could not be deleted, the
+    /// result is still returned and <see cref="BulkOperationDTO.Errors"/> reports them.
+    /// </returns>
     public async Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Delete;
 
-        var json = await Request(url, method, cancellationToken: cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = BulkOperationDTO.FromJson(json);
+        Dictionary<string, object?>? json;
+
+        try
+        {
+            json = await Request(url, method, cancellationToken: cancellationToken);
+        }
+        catch (PayloadError error)
+        {
+            json = error.AsBulkOperationResult();
+
+            if (json == null)
+            {
+                throw;
+            }
+        }
+
+        var dto = BulkOperationDTO.FromJson(json ?? new Dictionary<string, object?>());
 
         return dto;
     }
@@ -360,15 +378,33 @@ public class PayloadSDK
     /// <param name="query"><see cref="QueryBuilder"/> with <c>where</c> clause to select documents.</param>
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
-    /// <returns>The bulk result containing updated documents.</returns>
+    /// <returns>
+    /// The bulk result containing updated documents. When some documents could not be updated, the
+    /// result is still returned and <see cref="BulkOperationDTO.Errors"/> reports them.
+    /// </returns>
     public async Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, QueryBuilder query, FileUpload? file = null, CancellationToken cancellationToken = default)
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Patch;
         HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
 
-        var json = await Request(url, method, body, cancellationToken) ?? new Dictionary<string, object?>();
-        var dto = BulkOperationDTO.FromJson(json);
+        Dictionary<string, object?>? json;
+
+        try
+        {
+            json = await Request(url, method, body, cancellationToken);
+        }
+        catch (PayloadError error)
+        {
+            json = error.AsBulkOperationResult();
+
+            if (json == null)
+            {
+                throw;
+            }
+        }
+
+        var dto = BulkOperationDTO.FromJson(json ?? new Dictionary<string, object?>());
 
         return dto;
     }
