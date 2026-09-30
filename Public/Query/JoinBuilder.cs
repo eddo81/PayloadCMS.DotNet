@@ -12,7 +12,6 @@ public class JoinBuilder
 {
     private readonly List<JoinClause> _clauses = new();
     private readonly Dictionary<string, WhereBuilder> _whereBuilders = new();
-    private bool _disabled = false;
 
     /// <summary>
     /// Finds or creates a <see cref="JoinClause"/> for the given join field.
@@ -225,24 +224,20 @@ public class JoinBuilder
     }
 
     /// <summary>
-    /// Whether all joins have been explicitly disabled.
-    /// <para>When <c>true</c>, the caller should set <c>joins=false</c> in the
-    /// query parameters instead of calling <see cref="Build"/>.</para>
+    /// Switches off a single <c>Join Field</c>, so the server omits it from each document.
+    /// <para>Overrides any other options set on the same field, whichever order they are
+    /// called in.</para>
     /// </summary>
-    public bool IsDisabled
-    {
-        get { return _disabled; }
-    }
-
-    /// <summary>
-    /// Disables all <c>Join Fields</c> for the query.
-    /// <para>Sets <c>joins=false</c> in the query string, overriding
-    /// any previously configured join clauses.</para>
-    /// </summary>
+    /// <param name="on">The <c>Join Field</c> name.</param>
     /// <returns>The current builder for chaining.</returns>
-    public JoinBuilder Disable()
+    public JoinBuilder Disable(string on)
     {
-        _disabled = true;
+        var clause = GetOrCreateClause(on);
+
+        if (clause != null)
+        {
+            clause.Disabled = true;
+        }
 
         return this;
     }

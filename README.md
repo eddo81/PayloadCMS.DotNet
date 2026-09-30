@@ -1288,8 +1288,11 @@ var query = new QueryBuilder()
 ### Join
 
 Configures the documents returned through a **join field** — the reverse side of a
-relationship, such as a post's comments. Without configuration a join returns Payload's defaults;
-`Join()` lets you page, sort, filter, and count that nested set independently of the parent query.
+relationship, such as a post's comments. The join's value is itself a paginated resultset
+(`docs`, `hasNextPage`). Without configuration it returns Payload's defaults.
+
+`Join()` lets you page, sort, filter and count that nested set independently of the parent
+query, or switch a join field off. Filtering a join narrows the nested documents only — a parent with no matches is still returned with an empty set.
 
 The callback receives a builder whose methods all take an `on` parameter first: the name of the
 `join field` on the collection you're querying (`"comments"` on a `posts` document).
@@ -1314,7 +1317,7 @@ Inside the callback:
 | `Where` | `string on, string field, Operator op, object? value` | Filter joined documents. |
 | `And` | `string on, Action<WhereBuilder> callback` | Nested AND group on joined documents. |
 | `Or` | `string on, Action<WhereBuilder> callback` | Nested OR group on joined documents. |
-| `Disable` | — | Turn off all join fields for this query. |
+| `Disable` | `string on` | Omit this join field from the response. |
 
 #### Example
 ```csharp
@@ -1331,14 +1334,14 @@ var query = new QueryBuilder()
 PaginatedDocsDTO result = await sdk.Find("posts", query);
 ```
 
-Joins can also be switched off entirely, which is worth doing when you don't need the nested data
-and want to avoid the lookups:
+A join field can also be switched off. Disabling names the field and a disabled
+field is omitted from the document entirely rather than returned empty:
 
 ```csharp
 var query = new QueryBuilder()
-    .Join(join => join.Disable());
+    .Join(join => join.Disable("comments"));
 
-// Serializes to: ?joins=false
+// Serializes to: ?joins%5Bcomments%5D=false
 ```
 
 ## DTOs

@@ -270,6 +270,7 @@ public class QueryBuilder
         var where = _whereBuilder.Build();
         var select = _selectBuilder.Build();
         var populate = _populateBuilder.Build();
+        var joins = _joinBuilder.Build();
         var result = new Dictionary<string, object?>();
 
         if (_limit != null)
@@ -322,18 +323,9 @@ public class QueryBuilder
             result["where"] = where;
         }
 
-        if (_joinBuilder.IsDisabled)
+        if (joins != null)
         {
-            result["joins"] = false;
-        }
-        else
-        {
-            var joins = _joinBuilder.Build();
-
-            if (joins != null)
-            {
-                result["joins"] = joins;
-            }
+            result["joins"] = joins;
         }
 
         foreach (var customParam in _customParams)

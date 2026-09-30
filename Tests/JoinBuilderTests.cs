@@ -27,6 +27,74 @@ public class JoinBuilderTests
     }
 
     [Fact]
+    public void JoinBuilderShouldDisableASingleJoinField()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder => joinBuilder.Disable("posts"))
+            .Build();
+
+        // Payload tests joins[<field>] === 'false' per field. A top-level joins=false matches no
+        // schema path and is discarded, so the field name has to be named.
+        Assert.Equal("joins[posts]=false", _encoder.Stringify(params_));
+    }
+
+    [Fact]
+    public void JoinBuilderShouldDisableOnlyTheNamedField()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder
+                    .Disable("posts")
+                    .Limit("comments", 2);
+            })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("joins[posts]=false&joins[comments][limit]=2", actual);
+    }
+
+    [Fact]
+    public void JoinBuilderDisableShouldOverrideOtherOptionsWhateverTheOrder()
+    {
+        var disableLast = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder
+                    .Limit("posts", 5)
+                    .Sort("posts", "title")
+                    .Disable("posts");
+            })
+            .Build();
+
+        var disableFirst = new QueryBuilder()
+            .Join(joinBuilder =>
+            {
+                joinBuilder
+                    .Disable("posts")
+                    .Limit("posts", 5)
+                    .Sort("posts", "title");
+            })
+            .Build();
+
+        // Disabling a field and configuring it are mutually exclusive on the wire, so Disable wins
+        // either way rather than depending on call order.
+        Assert.Equal("joins[posts]=false", _encoder.Stringify(disableLast));
+        Assert.Equal("joins[posts]=false", _encoder.Stringify(disableFirst));
+    }
+
+    [Fact]
+    public void JoinBuilderShouldIgnoreDisableWithAnEmptyFieldName()
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder => joinBuilder.Disable(""))
+            .Build();
+
+        Assert.Equal("", _encoder.Stringify(params_));
+    }
+
+    [Fact]
     public void JoinBuilderShouldOverwriteDuplicateResults()
     {
         var params_ = new QueryBuilder()
