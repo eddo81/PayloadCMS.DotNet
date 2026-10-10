@@ -5,35 +5,42 @@ using PayloadCMS.DotNet.Enums;
 namespace PayloadCMS.DotNet.Internal;
 
 /// <summary>
-/// Represents a single field comparison condition.
+/// The operators applied to one field of a <c>where</c> level.
 /// </summary>
 internal class WhereClause : IClause
 {
-    private readonly string _field;
-    private readonly Operator _operator;
-    private readonly object? _value;
+    /// <summary>The field the operators apply to.</summary>
+    public readonly string Field;
 
-    public WhereClause(string field, Operator op, object? value)
+    private readonly Dictionary<string, object?> _operators = new();
+
+    public WhereClause(string field)
     {
-        _field = field;
-        _operator = op;
-        _value = value;
+        Field = field;
+    }
+
+    /// <summary>
+    /// Sets the value compared against for an operator.
+    /// <para>Setting an operator that is already set replaces its value.</para>
+    /// </summary>
+    /// <param name="op">The comparison operator.</param>
+    /// <param name="value">The value to compare against.</param>
+    public void Set(Operator op, object? value)
+    {
+        _operators[op.ToStringValue()] = value;
     }
 
     /// <summary>
     /// Serializes the clause into a <c>field[operator]=value</c> structure.
     /// </summary>
-    /// <returns>The serialized field comparison structure.</returns>
+    /// <returns>The field with each of its operators.</returns>
     public Dictionary<string, object?> Build()
     {
-        var inner = new Dictionary<string, object?>
-        {
-            [_operator.ToStringValue()] = _value
-        };
+        var inner = new Dictionary<string, object?>(_operators);
 
         var result = new Dictionary<string, object?>
         {
-            [_field] = inner
+            [Field] = inner
         };
 
         return result;

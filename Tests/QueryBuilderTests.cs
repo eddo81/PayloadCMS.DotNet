@@ -349,11 +349,9 @@ public class QueryBuilderTests
     public void WhereWithNestedOrGroupShouldFlattenCorrectly()
     {
         var params_ = new QueryBuilder()
-            .Or(group =>
-            {
-                group.Where("title", Operator.Equals, "foo")
-                     .Where("title", Operator.Equals, "bar");
-            })
+            .Where(where => where
+                .Or(first => first.Field("title", Operator.Equals, "foo"))
+                .Or(second => second.Field("title", Operator.Equals, "bar")))
             .Build();
 
         var actual = _encoder.Stringify(params_);
@@ -366,15 +364,11 @@ public class QueryBuilderTests
     public void MixedLogicalNestingAndContainingOrShouldFlattenCorrectly()
     {
         var params_ = new QueryBuilder()
-            .And(group =>
-            {
-                group.Where("status", Operator.Equals, "published")
-                     .Or(inner =>
-                     {
-                         inner.Where("title", Operator.Equals, "foo")
-                              .Where("title", Operator.Equals, "bar");
-                     });
-            })
+            .Where(where => where
+                .And(first => first.Field("status", Operator.Equals, "published"))
+                .And(second => second
+                    .Or(inner => inner.Field("title", Operator.Equals, "foo"))
+                    .Or(other => other.Field("title", Operator.Equals, "bar"))))
             .Build();
 
         var actual = _encoder.Stringify(params_);
@@ -392,8 +386,8 @@ public class QueryBuilderTests
     public void MultipleWhereCallsShouldMergeFieldsCorrectly()
     {
         var params_ = new QueryBuilder()
-            .Where("title", Operator.Equals, "foo")
-            .Where("status", Operator.Equals, "published")
+            .Where(where => where.Field("title", Operator.Equals, "foo"))
+            .Where(where => where.Field("status", Operator.Equals, "published"))
             .Build();
 
         var actual = _encoder.Stringify(params_);
@@ -406,11 +400,9 @@ public class QueryBuilderTests
     public void OrGroupsShouldProduceCorrectNestedTree()
     {
         var params_ = new QueryBuilder()
-            .Or(group =>
-            {
-                group.Where("title", Operator.Equals, "foo")
-                     .Where("status", Operator.Equals, "published");
-            })
+            .Where(where => where
+                .Or(first => first.Field("title", Operator.Equals, "foo"))
+                .Or(second => second.Field("status", Operator.Equals, "published")))
             .Build();
 
         var actual = _encoder.Stringify(params_);
@@ -423,12 +415,96 @@ public class QueryBuilderTests
     public void QueryBuilderShouldOverwriteWhereResultInsteadOfMerging()
     {
         var params_ = new QueryBuilder()
-            .Where("title", Operator.Equals, "foo")
-            .Where("title", Operator.Equals, "bar")
+            .Where(where => where
+                .Field("title", Operator.Equals, "foo")
+                .Field("title", Operator.Equals, "bar"))
             .Build();
 
         var actual = _encoder.Stringify(params_);
 
         Assert.Equal("where[title][equals]=bar", actual);
+    }
+
+    [Fact]
+    public void WhereSeveralOperatorsOnOneFieldShouldShareTheField()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => where
+                .Field("views", Operator.GreaterThan, 10)
+                .Field("views", Operator.LessThan, 600))
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("where[views][greater_than]=10&where[views][less_than]=600", actual);
+    }
+
+    [Fact]
+    public void WhereOrElementShouldHoldSeveralConditions()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => where
+                .Or(first => first
+                    .Field("author", Operator.Equals, "alice")
+                    .Field("featured", Operator.Equals, true))
+                .Or(second => second.Field("rating", Operator.GreaterThan, 4)))
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+        var expected = string.Join("&", new[]
+        {
+            "where[or][0][author][equals]=alice",
+            "where[or][0][featured][equals]=true",
+            "where[or][1][rating][greater_than]=4"
+        });
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void WhereRepeatedOrCallsShouldAddElements()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => where
+                .Or(first => first.Field("title", Operator.Equals, "foo"))
+                .Or(second => second.Field("title", Operator.Equals, "bar")))
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("where[or][0][title][equals]=foo&where[or][1][title][equals]=bar", actual);
+    }
+
+    [Fact]
+    public void WhereShouldWriteFieldsBeforeAndAndOrGroups()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => where
+                .Or(first => first.Field("title", Operator.Equals, "foo"))
+                .And(second => second.Field("views", Operator.GreaterThan, 10))
+                .Field("status", Operator.Equals, "published"))
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+        var expected = string.Join("&", new[]
+        {
+            "where[status][equals]=published",
+            "where[and][0][views][greater_than]=10",
+            "where[or][0][title][equals]=foo"
+        });
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void WhereWithNoConditionsShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => { })
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("", actual);
     }
 }

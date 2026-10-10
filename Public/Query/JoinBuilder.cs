@@ -1,12 +1,10 @@
 ﻿using PayloadCMS.DotNet.Internal;
-using PayloadCMS.DotNet.Enums;
 
 namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
-/// Collects and composes <c>Join Field</c> query operations.
-/// <para>Scoped to the <c>joins</c> query parameter and invoked
-/// via <see cref="QueryBuilder.Join"/>.</para>
+/// Builds options for a query's join fields, such as limits, sorting and filter conditions.
+/// <para>Used through <see cref="QueryBuilder.Join"/>.</para>
 /// </summary>
 public class JoinBuilder
 {
@@ -14,11 +12,10 @@ public class JoinBuilder
     private readonly Dictionary<string, WhereBuilder> _whereBuilders = new();
 
     /// <summary>
-    /// Finds or creates a <see cref="JoinClause"/> for the given join field.
-    /// <para>If <c>on</c> is an empty string, returns <c>null</c> and the
-    /// caller should skip the operation.</para>
+    /// Finds or creates the <see cref="JoinClause"/> for the given join field.
+    /// <para>Returns <c>null</c> if the join field name is empty, so the operation is skipped.</para>
     /// </summary>
-    /// <param name="on">The <c>Join Field</c> name (e.g. "relatedPosts").</param>
+    /// <param name="on">The <c>Join Field</c> name.</param>
     /// <returns>The clause instance, or <c>null</c> if <c>on</c> is empty.</returns>
     private JoinClause? GetOrCreateClause(string on)
     {
@@ -154,64 +151,17 @@ public class JoinBuilder
     }
 
     /// <summary>
-    /// Adds a <c>where</c> condition scoped to a <c>Join Field</c>.
-    /// <para>Multiple calls for the same join accumulate via
-    /// an internal <see cref="WhereBuilder"/> cache.</para>
+    /// Adds filter conditions for the documents of a join field.
+    /// <para>Repeated calls for the same join field add to the same set of conditions.</para>
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
-    /// <param name="field">The field to compare.</param>
-    /// <param name="op">The comparison operator.</param>
-    /// <param name="value">The value to compare against.</param>
+    /// <param name="callback">Receives a <see cref="WhereBuilder"/> instance used to define the conditions.</param>
     /// <returns>The current builder for chaining.</returns>
-    public JoinBuilder Where(string on, string field, Operator op, object? value)
+    public JoinBuilder Where(string on, Action<WhereBuilder> callback)
     {
         var builder = GetOrCreateWhereBuilder(on);
 
-        builder.Where(field, op, value);
-
-        var clause = GetOrCreateClause(on);
-
-        if (clause != null)
-        {
-            clause.Where = builder.Build();
-        }
-
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a nested <c>AND</c> group scoped to a <c>Join Field</c>.
-    /// </summary>
-    /// <param name="on">The <c>Join Field</c> name.</param>
-    /// <param name="callback">Receives a <see cref="WhereBuilder"/> for nested conditions.</param>
-    /// <returns>The current builder for chaining.</returns>
-    public JoinBuilder And(string on, Action<WhereBuilder> callback)
-    {
-        var builder = GetOrCreateWhereBuilder(on);
-
-        builder.And(callback);
-
-        var clause = GetOrCreateClause(on);
-
-        if (clause != null)
-        {
-            clause.Where = builder.Build();
-        }
-
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a nested <c>OR</c> group scoped to a <c>Join Field</c>.
-    /// </summary>
-    /// <param name="on">The <c>Join Field</c> name.</param>
-    /// <param name="callback">Receives a <see cref="WhereBuilder"/> for nested conditions.</param>
-    /// <returns>The current builder for chaining.</returns>
-    public JoinBuilder Or(string on, Action<WhereBuilder> callback)
-    {
-        var builder = GetOrCreateWhereBuilder(on);
-
-        builder.Or(callback);
+        callback(builder);
 
         var clause = GetOrCreateClause(on);
 
@@ -243,9 +193,9 @@ public class JoinBuilder
     }
 
     /// <summary>
-    /// Builds the <c>joins</c> query parameter object.
+    /// Builds the final <c>joins</c> object from all configured join fields.
     /// </summary>
-    /// <returns>The joins object, or <c>null</c> if no clauses have been added.</returns>
+    /// <returns>The <c>joins</c> object, or <c>null</c> if no join fields were configured.</returns>
     public Dictionary<string, object?>? Build()
     {
         if (_clauses.Count == 0)

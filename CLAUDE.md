@@ -61,9 +61,9 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 
   So `Sort`, `SortByDescending`, `Locale`, `FallbackLocale`, `Select`, `Exclude` and `Populate` skip
   empty/null input (skipping them yields default ordering or a wider field set — conservative), while
-  `Where` is deliberately **not** guarded: skipping a `where` clause removes a filter and returns *more
-  documents*, and Payload already answers an empty field path with a diagnosable HTTP 400. Do not
-  "complete" the set by adding a `Where` guard. Full reasoning and live measurements: `LIBRARY.md`
+  `WhereBuilder.Field` is deliberately **not** guarded: skipping a `where` condition removes a filter
+  and returns *more documents*, and Payload already answers an empty field path with a diagnosable
+  HTTP 400. Do not "complete" the set by adding a `Field` guard. Full reasoning and live measurements: `LIBRARY.md`
   item 13.
 
 ## Key Conventions
@@ -83,15 +83,15 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `ApiKeyAuth`, `JwtAuth` — auth credentials
 - `Operator` — enum with StringValue (HttpMethod enum dropped — uses `System.Net.Http.HttpMethod`)
 - `StringValueAttribute`, `EnumExtensions` — enum support
-- `WhereClause`, `AndClause`, `OrClause`, `JoinClause`, `SelectClause` — internal clause strategy
+- `WhereClause` (one field's operators), `JoinClause`, `SelectClause` — internal clause strategy (`AndClause`/`OrClause` removed 2026-10-04)
 - `FormDataBuilder` — multipart form data builder
 - `QueryStringEncoder` — full recursive implementation complete
 - `JsonParser` — JSON serialization, deserialization, CLR conversion, and `TryConvertInt`
 - `DocumentDTO`, `PaginatedDocsDTO`, `TotalDocsDTO`, `BulkOperationDTO` — collection DTOs (sealed classes)
 - `LoginResultDTO`, `MeResultDTO`, `RefreshResultDTO`, `ResetPasswordResultDTO`, `MessageDTO` — auth DTOs (sealed classes)
-- `WhereBuilder` — public fluent expression builder in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `WhereBuilder` — public fluent builder mirroring Payload's `Where` one-to-one: `Field(field, op, value)` (operators share a field, same operator = last write wins), `And(callback)`/`Or(callback)` (one element per call, chained). Entry points `QueryBuilder.Where(callback)` and `JoinBuilder.Where(on, callback)`; no overloads. In `Public/Query/`, namespace `PayloadCMS.DotNet.Query`. See `PROJECT_GUIDELINES.md` §5.2 and `LIBRARY.md` item 11
 - `SelectBuilder` — public fluent field-selection builder (delegates to `SelectClause` list, deep-merges results) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
-- `JoinBuilder` — public fluent join builder (with `IsDisabled` getter) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `JoinBuilder` — public fluent join builder (`Disable(on)` per join field) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PopulateBuilder` — public fluent populate-mask builder (composes one `SelectBuilder` per collection slug) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `QueryBuilder` — public fluent facade over `WhereBuilder`, `SelectBuilder`, and `JoinBuilder` in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `ServerStack`, `Result`) in `Public/`, namespace `PayloadCMS.DotNet`
@@ -101,7 +101,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
 - `QueryBuilderExtensions` — `AddCustomParam`, `Draft`, `Trash`, `Autosave` in `Public/Extensions/`, namespace `PayloadCMS.DotNet.Extensions` (opt-in import, deliberately not members of `QueryBuilder` itself — see CLAUDE.md's "Extensibility" backlog closure and `PROJECT_GUIDELINES.md` §5.8)
-- xUnit v3 test suite — 111 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 181 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -129,7 +129,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 
 ## JoinBuilder Notes
 - `Build()` returns `Dictionary<string, object?>?` (null if no clauses)
-- `IsDisabled` is a separate bool getter (split from original `false` union return)
+- `Disable(on)` sets `JoinClause.Disabled`, which builds as `{ on: false }` (`joins[on]=false`); no global form — Payload discards `joins=false` (`LIBRARY.md` item 16)
 - Get-or-create pattern keyed by collection name (`On` field)
 
 ## Auth Flow
@@ -377,7 +377,7 @@ revisit, not a decided change.
   nullable return (and a null-check) on every caller. Net: real feature, flawed reference
   implementation, no clean C# translation, existing idiom already covers the use case — not worth
   the added surface. See `TYPESCRIPT_BACKPORT.md` §14 for the full source trace.
-- **`Where("id", Operator.Exists, ...)` always returns zero hits — upstream Payload/Mongo-adapter
+- **`Field("id", Operator.Exists, ...)` always returns zero hits — upstream Payload/Mongo-adapter
   limitation, not a client bug** (found 2026-07-30 via the B6 lab). Verified two ways: (1) the raw
   query string our `QueryStringEncoder` produces (`where[id][exists]=true`) is exactly correct —
   confirmed by sending that identical string with plain curl, bypassing the SDK entirely, and

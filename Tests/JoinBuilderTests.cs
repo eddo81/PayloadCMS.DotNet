@@ -14,7 +14,7 @@ public class JoinBuilderTests
             .Join(joinBuilder =>
             {
                 joinBuilder
-                    .Where("posts", "author", Operator.Equals, "Alice")
+                    .Where("posts", where => where.Field("author", Operator.Equals, "Alice"))
                     .SortByDescending("posts", "title")
                     .Limit("posts", 1);
             })
@@ -101,8 +101,8 @@ public class JoinBuilderTests
             .Join(joinBuilder =>
             {
                 joinBuilder
-                    .Where("posts", "author", Operator.Equals, "Alice")
-                    .Where("posts", "author", Operator.Equals, "Bob");
+                    .Where("posts", where => where.Field("author", Operator.Equals, "Alice"))
+                    .Where("posts", where => where.Field("author", Operator.Equals, "Bob"));
             })
             .Build();
 
@@ -251,8 +251,8 @@ public class JoinBuilderTests
             .Join(joinBuilder =>
             {
                 joinBuilder
-                    .Where("posts", "status", Operator.Equals, "published")
-                    .Where("posts", "author", Operator.Equals, "Alice");
+                    .Where("posts", where => where.Field("status", Operator.Equals, "published"))
+                    .Where("posts", where => where.Field("author", Operator.Equals, "Alice"));
             })
             .Build();
 
@@ -268,12 +268,9 @@ public class JoinBuilderTests
         var params_ = new QueryBuilder()
             .Join(joinBuilder =>
             {
-                joinBuilder.And("posts", group =>
-                {
-                    group
-                        .Where("status", Operator.Equals, "published")
-                        .Where("author", Operator.Equals, "Alice");
-                });
+                joinBuilder.Where("posts", where => where
+                    .And(first => first.Field("status", Operator.Equals, "published"))
+                    .And(second => second.Field("author", Operator.Equals, "Alice")));
             })
             .Build();
 
@@ -289,12 +286,9 @@ public class JoinBuilderTests
         var params_ = new QueryBuilder()
             .Join(joinBuilder =>
             {
-                joinBuilder.Or("posts", group =>
-                {
-                    group
-                        .Where("author", Operator.Equals, "Alice")
-                        .Where("author", Operator.Equals, "Bob");
-                });
+                joinBuilder.Where("posts", where => where
+                    .Or(first => first.Field("author", Operator.Equals, "Alice"))
+                    .Or(second => second.Field("author", Operator.Equals, "Bob")));
             })
             .Build();
 
@@ -310,17 +304,11 @@ public class JoinBuilderTests
         var params_ = new QueryBuilder()
             .Join(joinBuilder =>
             {
-                joinBuilder.And("posts", group =>
-                {
-                    group
-                        .Where("status", Operator.Equals, "published")
-                        .Or(inner =>
-                        {
-                            inner
-                                .Where("author", Operator.Equals, "Alice")
-                                .Where("author", Operator.Equals, "Bob");
-                        });
-                });
+                joinBuilder.Where("posts", where => where
+                    .And(first => first.Field("status", Operator.Equals, "published"))
+                    .And(second => second
+                        .Or(inner => inner.Field("author", Operator.Equals, "Alice"))
+                        .Or(other => other.Field("author", Operator.Equals, "Bob"))));
             })
             .Build();
 
@@ -337,7 +325,7 @@ public class JoinBuilderTests
             .Join(joinBuilder =>
             {
                 joinBuilder
-                    .Where("posts", "status", Operator.Equals, "published")
+                    .Where("posts", where => where.Field("status", Operator.Equals, "published"))
                     .Limit("posts", 5)
                     .Sort("posts", "createdAt");
             })
@@ -356,13 +344,10 @@ public class JoinBuilderTests
             .Join(joinBuilder =>
             {
                 joinBuilder
-                    .Where("posts", "status", Operator.Equals, "published")
-                    .And("posts", group =>
-                    {
-                        group
-                            .Where("rating", Operator.GreaterThan, 3)
-                            .Where("featured", Operator.Equals, true);
-                    });
+                    .Where("posts", where => where.Field("status", Operator.Equals, "published"))
+                    .Where("posts", where => where
+                        .And(first => first.Field("rating", Operator.GreaterThan, 3))
+                        .And(second => second.Field("featured", Operator.Equals, true)));
             })
             .Build();
 

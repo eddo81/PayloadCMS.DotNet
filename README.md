@@ -247,7 +247,7 @@ Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, Que
 #### Example
 ```csharp
 var query = new QueryBuilder()
-    .Where("id", Operator.Equals, "123");
+    .Where(where => where.Field("id", Operator.Equals, "123"));
 
 var data = new Dictionary<string, object?>
 {
@@ -299,7 +299,7 @@ Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken
 #### Example
 ```csharp
 var query = new QueryBuilder()
-    .Where("_status", Operator.Equals, "draft");
+    .Where(where => where.Field("_status", Operator.Equals, "draft"));
 
 BulkOperationDTO result = await sdk.Delete("posts", query);
 ```
@@ -876,7 +876,7 @@ using PayloadCMS.DotNet.Enums;
 using PayloadCMS.DotNet.Query;
 
 var query = new QueryBuilder()
-    .Where("_status", Operator.Equals, "published")
+    .Where(where => where.Field("_status", Operator.Equals, "published"))
     .Sort("createdAt")
     .Limit(10)
     .Page(2);
@@ -956,7 +956,7 @@ QueryBuilder Pagination(bool value)
 ```csharp
 // Every published post, in one response
 var query = new QueryBuilder()
-    .Where("_status", Operator.Equals, "published")
+    .Where(where => where.Field("_status", Operator.Equals, "published"))
     .Pagination(false);
 
 // Skip the count query, but still cap the result set
@@ -1179,11 +1179,31 @@ var query = new QueryBuilder()
 
 ### Where
 
-Filters which documents get returned by the query. Specify the field to compare, the comparison operator, and the value to compare it against. Each call adds one condition on a field, and multiple calls combine as AND.
+Filters which documents get returned by the query. The callback receives a builder for describing
+the filter: conditions on fields, plus groups where all or at least one must match.
 
 ```csharp
-QueryBuilder Where(string field, Operator op, object? value)
+QueryBuilder Where(Action<WhereBuilder> callback)
 ```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `callback` | `Action<WhereBuilder>` | Receives a builder for describing the filter. |
+
+Calling `Where` again adds to the same filter.
+
+Inside the callback:
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `Field` | `string field, Operator op, object? value` | Adds a condition on a field. |
+| `And` | `Action<WhereBuilder> callback` | Adds a group of conditions that must all match. |
+| `Or` | `Action<WhereBuilder> callback` | Adds an alternative; at least one alternative must match. |
+
+#### Field
+
+Each call adds one condition. Conditions on different fields must all match. Several operators on
+the same field are combined; if the same operator is set twice on a field, the last value is used.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -1193,14 +1213,24 @@ QueryBuilder Where(string field, Operator op, object? value)
 
 > **Dates:** `DateTime` and `DateTimeOffset` serialize as UTC ISO 8601 timestamps with millisecond precision (`2026-03-01T12:30:45.000Z`); `DateOnly` as a plain date (`2026-03-01`). A `DateTime` with `Kind.Local` is converted to UTC; with no `Kind`, it is treated as UTC.
 
-#### Example
 ```csharp
 // Published posts with more than 100 views
 var query = new QueryBuilder()
-    .Where("_status", Operator.Equals, "published")
-    .Where("views", Operator.GreaterThan, 100);
+    .Where(where => where
+        .Field("_status", Operator.Equals, "published")
+        .Field("views", Operator.GreaterThan, 100));
 
 // Serializes to: ?where%5B_status%5D%5Bequals%5D=published&where%5Bviews%5D%5Bgreater_than%5D=100
+```
+
+```csharp
+// A range: two operators on one field
+var query = new QueryBuilder()
+    .Where(where => where
+        .Field("views", Operator.GreaterThan, 100)
+        .Field("views", Operator.LessThan, 500));
+
+// Serializes to: ?where%5Bviews%5D%5Bgreater_than%5D=100&where%5Bviews%5D%5Bless_than%5D=500
 ```
 
 The `Operator` enum supports the following type of comparisons.
@@ -1229,60 +1259,48 @@ public enum Operator
 
 **Known limitation**: `Operator.Exists` on the `id` field of a collection always returns zero results, regardless of `true` or `false`.
 
-### And
+#### And
 
-Groups several conditions into a single AND block. Use it when a plain sequence of `Where()` calls
-can't express the shape you need — most often when an AND group has to sit *inside* an OR.
-
-The callback receives a nested builder exposing the same `Where`, `And`, and `Or` methods, so
-groups can be composed to any depth.
+Adds a group of conditions that must all match. Each call adds one group, and groups can contain
+further `And` and `Or` groups. It is also the way to apply the same operator to one field twice:
 
 ```csharp
-QueryBuilder And(Action<WhereBuilder> callback)
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `callback` | `Action<WhereBuilder>` | Receives a nested builder for composing the grouped conditions. |
-
-#### Example
-```csharp
+// Published posts whose title contains both "release" and "notes"
 var query = new QueryBuilder()
-    .Where("_status", Operator.Equals, "published")
-    .And(builder =>
-    {
-        builder
-            .Where("views", Operator.GreaterThan, 100)
-            .Where("featured", Operator.Equals, true);
-    });
+    .Where(where => where
+        .Field("_status", Operator.Equals, "published")
+        .And(group => group.Field("title", Operator.Like, "release"))
+        .And(group => group.Field("title", Operator.Like, "notes")));
+
+// Serializes to: ?where%5B_status%5D%5Bequals%5D=published&where%5Band%5D%5B0%5D%5Btitle%5D%5Blike%5D=release&where%5Band%5D%5B1%5D%5Btitle%5D%5Blike%5D=notes
 ```
 
-### Or
+#### Or
 
-Groups conditions so that *any* of them can match. This is how you express "posts in either of
-these two categories" without running two queries.
+Adds an alternative; at least one alternative must match. Each call adds one alternative, and every
+condition inside the same callback must match for that alternative to match.
 
-```csharp
-QueryBuilder Or(Action<WhereBuilder> callback)
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `callback` | `Action<WhereBuilder>` | Receives a nested builder for composing the grouped conditions. |
-
-#### Example
 ```csharp
 // Published, and in one of two categories
 var query = new QueryBuilder()
-    .Where("_status", Operator.Equals, "published")
-    .Or(builder =>
-    {
-        builder
-            .Where("category", Operator.Equals, "news")
-            .Where("category", Operator.Equals, "blog");
-    });
+    .Where(where => where
+        .Field("_status", Operator.Equals, "published")
+        .Or(alternative => alternative.Field("category", Operator.Equals, "news"))
+        .Or(alternative => alternative.Field("category", Operator.Equals, "blog")));
 
 // Serializes to: ?where%5B_status%5D%5Bequals%5D=published&where%5Bor%5D%5B0%5D%5Bcategory%5D%5Bequals%5D=news&where%5Bor%5D%5B1%5D%5Bcategory%5D%5Bequals%5D=blog
+```
+
+```csharp
+// Either featured with more than 100 views, or in the "news" category
+var query = new QueryBuilder()
+    .Where(where => where
+        .Or(alternative => alternative
+            .Field("featured", Operator.Equals, true)
+            .Field("views", Operator.GreaterThan, 100))
+        .Or(alternative => alternative.Field("category", Operator.Equals, "news")));
+
+// Serializes to: ?where%5Bor%5D%5B0%5D%5Bfeatured%5D%5Bequals%5D=true&where%5Bor%5D%5B0%5D%5Bviews%5D%5Bgreater_than%5D=100&where%5Bor%5D%5B1%5D%5Bcategory%5D%5Bequals%5D=news
 ```
 
 ### Join
@@ -1314,9 +1332,7 @@ Inside the callback:
 | `Sort` | `string on, string field` | Sort joined documents ascending. |
 | `SortByDescending` | `string on, string field` | Sort joined documents descending. |
 | `Count` | `string on, bool value = true` | Include a total count of joined documents. |
-| `Where` | `string on, string field, Operator op, object? value` | Filter joined documents. |
-| `And` | `string on, Action<WhereBuilder> callback` | Nested AND group on joined documents. |
-| `Or` | `string on, Action<WhereBuilder> callback` | Nested OR group on joined documents. |
+| `Where` | `string on, Action<WhereBuilder> callback` | Filter joined documents. The callback works like `Where` on the query. |
 | `Disable` | `string on` | Omit this join field from the response. |
 
 #### Example
@@ -1328,7 +1344,7 @@ var query = new QueryBuilder()
         join
             .Limit("comments", 5)
             .SortByDescending("comments", "createdAt")
-            .Where("comments", "content", Operator.Contains, "hello");
+            .Where("comments", where => where.Field("content", Operator.Contains, "hello"));
     });
 
 PaginatedDocsDTO result = await sdk.Find("posts", query);

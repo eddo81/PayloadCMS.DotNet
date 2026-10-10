@@ -74,7 +74,7 @@ public class PayloadSDKTests
     {
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, OnePageOfPosts);
 
-        var query = new QueryBuilder().Where("title", Operator.Equals, "foo");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Equals, "foo"));
         await sdk.Find("posts", query);
 
         // The default is strict encoding, which is what qs-esm produces and what a Payload
@@ -88,7 +88,7 @@ public class PayloadSDKTests
         var config = new PayloadSDKConfig { StrictEncoding = false };
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, OnePageOfPosts, config);
 
-        var query = new QueryBuilder().Where("title", Operator.Equals, "foo");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Equals, "foo"));
         await sdk.Find("posts", query);
 
         Assert.Contains("where[title][equals]=foo", handler.LastRequest!.RequestUri!.OriginalString);
@@ -336,7 +336,7 @@ public class PayloadSDKTests
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
 
         var data = new Dictionary<string, object?> { ["published"] = false };
-        var query = new QueryBuilder().Where("title", Operator.Equals, "Hello");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Equals, "Hello"));
         var result = await sdk.Update("posts", data, query);
 
         Assert.Single(result.Docs);
@@ -365,7 +365,7 @@ public class PayloadSDKTests
         var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadRequest, PartialBulkFailure);
 
         var data = new Dictionary<string, object?> { ["published"] = false };
-        var query = new QueryBuilder().Where("title", Operator.Equals, "Hello");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Equals, "Hello"));
         var result = await sdk.Update("posts", data, query);
 
         // The documents that did update are the part a caller needs in order to recover.
@@ -379,7 +379,7 @@ public class PayloadSDKTests
     {
         var (sdk, _) = SdkFactory.Create(HttpStatusCode.BadRequest, PartialBulkFailure);
 
-        var query = new QueryBuilder().Where("title", Operator.Equals, "Hello");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Equals, "Hello"));
         var result = await sdk.Delete("posts", query);
 
         Assert.Equal(2, result.Docs.Count);
@@ -430,7 +430,7 @@ public class PayloadSDKTests
             """;
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
 
-        var query = new QueryBuilder().Where("title", Operator.Contains, "Test");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Contains, "Test"));
         var result = await sdk.Delete("posts", query);
 
         Assert.Single(result.Docs);
@@ -854,7 +854,7 @@ public class PayloadSDKTests
         const string json = """{ "docs": [] }""";
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
 
-        var query = new QueryBuilder().Where("title", Operator.Equals, "Test");
+        var query = new QueryBuilder().Where(where => where.Field("title", Operator.Equals, "Test"));
         var config = new RequestConfig(HttpMethod.Get, "/api/posts", null, query);
         await sdk.Request(config);
 

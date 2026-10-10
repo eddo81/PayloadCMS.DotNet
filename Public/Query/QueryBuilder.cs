@@ -1,6 +1,4 @@
-﻿using PayloadCMS.DotNet.Enums;
-
-namespace PayloadCMS.DotNet.Query;
+﻿namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Fluent builder for Payload CMS REST API query parameters.
@@ -205,42 +203,15 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Adds a field comparison to the <c>where</c> clause.
+    /// Adds filter conditions to the query.
+    /// <para>Repeated calls add to the same set of conditions.</para>
     /// <para>Delegates to the internal <see cref="WhereBuilder"/>.</para>
     /// </summary>
-    /// <param name="field">The field name.</param>
-    /// <param name="op">The comparison operator.</param>
-    /// <param name="value">The value to compare against.</param>
+    /// <param name="callback">Receives a <see cref="WhereBuilder"/> instance used to define the conditions.</param>
     /// <returns>The current builder for chaining.</returns>
-    public QueryBuilder Where(string field, Operator op, object? value)
+    public QueryBuilder Where(Action<WhereBuilder> callback)
     {
-        _whereBuilder.Where(field, op, value);
-
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a nested <c>AND</c> group of <c>where</c> conditions.
-    /// <para>Delegates to a fresh <see cref="WhereBuilder"/> via callback.</para>
-    /// </summary>
-    /// <param name="callback">Receives a <see cref="WhereBuilder"/> for nested conditions.</param>
-    /// <returns>The current builder for chaining.</returns>
-    public QueryBuilder And(Action<WhereBuilder> callback)
-    {
-        _whereBuilder.And(callback);
-
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a nested <c>OR</c> group of <c>where</c> conditions.
-    /// <para>Delegates to a fresh <see cref="WhereBuilder"/> via callback.</para>
-    /// </summary>
-    /// <param name="callback">Receives a <see cref="WhereBuilder"/> for nested conditions.</param>
-    /// <returns>The current builder for chaining.</returns>
-    public QueryBuilder Or(Action<WhereBuilder> callback)
-    {
-        _whereBuilder.Or(callback);
+        callback(_whereBuilder);
 
         return this;
     }
