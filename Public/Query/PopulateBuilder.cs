@@ -1,30 +1,24 @@
 ﻿namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
-/// Fluent builder for Payload CMS <c>populate</c> query parameters.
-///
-/// <para><c>populate</c> is a select shape keyed by target collection slug
-/// (e.g. <c>populate[users][name]=true</c>) that narrows what already-populated
-/// documents contain. It does not choose which relationships resolve into
-/// objects — that is <c>depth</c>'s job — and it overrides the target
-/// collection's <c>defaultPopulate</c> config. Payload always includes <c>id</c>.</para>
-///
-/// <para>Each collection's mask is composed via a <see cref="SelectBuilder"/>,
-/// so dot notation and additive deep-merging behave exactly like <c>select</c>.</para>
+/// Builds the fields to return for related documents, collection by collection.
+/// <para>Used through <see cref="QueryBuilder.Populate"/>.</para>
 /// </summary>
 public class PopulateBuilder
 {
     private readonly Dictionary<string, SelectBuilder> _masks = new Dictionary<string, SelectBuilder>();
 
     /// <summary>
-    /// Masks the fields returned on populated documents from a target <c>collection</c>.
-    /// <para>Keyed by collection slug (not field name) so polymorphic relationships
-    /// are masked consistently. Repeated calls for the same collection merge
-    /// additively. Empty collection slugs are silently skipped.</para>
+    /// Chooses which fields are returned for related documents from the given collection.
+    /// <para>Only affects related documents that are returned in full, so it needs
+    /// <see cref="QueryBuilder.Depth"/> set to 1 or more.</para>
+    /// <para>Call it again for the same collection to add more fields. Use dot notation for nested
+    /// fields, such as <c>"group.number"</c>.</para>
+    /// <para>An empty collection name is ignored.</para>
     /// </summary>
-    /// <param name="collection">The target collection slug (e.g. <c>"users"</c>).</param>
-    /// <param name="fields">Field names to include on populated documents.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="collection">The collection the related documents belong to, such as <c>"users"</c>.</param>
+    /// <param name="fields">The fields to return for those documents.</param>
+    /// <returns>The current <see cref="PopulateBuilder"/> instance.</returns>
     public PopulateBuilder Populate(string collection, string[] fields)
     {
         if (string.IsNullOrEmpty(collection))
@@ -43,9 +37,9 @@ public class PopulateBuilder
     }
 
     /// <summary>
-    /// Builds the final <c>populate</c> object keyed by collection slug.
+    /// Builds the final <c>populate</c> object from all configured collections.
     /// </summary>
-    /// <returns>The populate map, or <c>null</c> if no masks were configured.</returns>
+    /// <returns>The <c>populate</c> object, or <c>null</c> if no fields were configured.</returns>
     public Dictionary<string, object?>? Build()
     {
         var result = new Dictionary<string, object?>();

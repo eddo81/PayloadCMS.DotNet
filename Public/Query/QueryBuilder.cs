@@ -2,9 +2,7 @@
 
 /// <summary>
 /// Fluent builder for Payload CMS REST API query parameters.
-/// <para>Delegates filtering to <see cref="WhereBuilder"/>,
-/// field selection to <see cref="SelectBuilder"/>, and
-/// join configuration to <see cref="JoinBuilder"/>.</para>
+/// Use it to filter, sort, paginate, and control which fields and related documents are returned.
 /// </summary>
 public class QueryBuilder
 {
@@ -25,7 +23,7 @@ public class QueryBuilder
     /// Limits the number of documents returned.
     /// </summary>
     /// <param name="value">Maximum document count.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Limit(int value)
     {
         _limit = value;
@@ -34,10 +32,10 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Sets the page of results to retrieve (1-based).
+    /// Sets which page of results to return. The first page is 1.
     /// </summary>
     /// <param name="value">The page number.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Page(int value)
     {
         _page = value;
@@ -46,16 +44,11 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Toggles pagination. <c>Pagination(false)</c> returns every matching document and skips
-    /// the extra <c>totalDocs</c>/<c>totalPages</c> count query — a real REST parameter, verified
-    /// against Payload's own SDK source (<c>buildSearchParams</c> treats it identically to
-    /// <c>draft</c>/<c>trash</c>), not just a Local API convenience despite the
-    /// official docs' REST example only demonstrating <see cref="Limit"/>/<see cref="Page"/>.
-    /// <para>Combine with <see cref="Limit"/> to still cap the result count while skipping the
-    /// count query.</para>
+    /// Turns paging on or off. With paging off, every matching document is returned in one response.
+    /// <para>Combine with <see cref="Limit"/> to still cap how many documents are returned.</para>
     /// </summary>
-    /// <param name="value"><c>false</c> to disable pagination and return all matches.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="value"><c>false</c> to return every match at once; <c>true</c> to return pages.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Pagination(bool value)
     {
         _pagination = value;
@@ -64,12 +57,12 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Sorts results ascending by the given field.
-    /// <para>Can be called multiple times for multi-field sorts.</para>
+    /// Sorts results by the given field, in ascending order.
+    /// <para>Call it again to add further sort fields; earlier calls take priority.</para>
     /// <para>An empty field name is ignored.</para>
     /// </summary>
-    /// <param name="field">The field name to sort by.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="field">The field to sort by.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Sort(string field)
     {
         if (string.IsNullOrEmpty(field))
@@ -90,12 +83,13 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Sorts results descending by the given field.
-    /// <para>Automatically prefixes the field with <c>-</c> if needed.</para>
+    /// Sorts results by the given field, in descending order.
+    /// <para>Combines with <see cref="Sort"/>: calls add sort fields in order, earlier calls taking
+    /// priority.</para>
     /// <para>An empty field name is ignored.</para>
     /// </summary>
-    /// <param name="field">The field name to sort by.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="field">The field to sort by.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder SortByDescending(string field)
     {
         if (!string.IsNullOrEmpty(field) && !field.StartsWith('-'))
@@ -107,10 +101,12 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Sets the population <c>depth</c> for related documents.
+    /// Controls whether related documents are returned in full or as IDs only.
+    /// <para>A value of 0 returns related documents as IDs only; 1 includes the directly related
+    /// documents; 2 also includes their related documents, and so on.</para>
     /// </summary>
-    /// <param name="value">Depth level (0 = none, 1 = direct, etc.).</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="value">How many levels deep to return related documents in full.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Depth(int value)
     {
         _depth = value;
@@ -119,11 +115,11 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Sets the <c>locale</c> for querying localized fields.
+    /// Sets the language that translated fields are returned in.
     /// <para>An empty value is ignored.</para>
     /// </summary>
-    /// <param name="value">A locale string (e.g. <c>en</c>, <c>sv</c>).</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="value">A locale code, such as <c>en</c> or <c>sv</c>.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Locale(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -137,11 +133,12 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Sets a <c>fallback locale</c> when localized values are missing.
+    /// Sets the language to fall back to when a translated field has no value in the requested
+    /// language.
     /// <para>An empty value is ignored.</para>
     /// </summary>
-    /// <param name="value">A fallback locale string (e.g. <c>en</c>).</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="value">A locale code, such as <c>en</c>.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder FallbackLocale(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -155,12 +152,13 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Marks fields for inclusion in the response.
-    /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
-    /// <para>Delegates to the internal <see cref="SelectBuilder"/>.</para>
+    /// Returns only the given fields of each document.
+    /// <para>Call it again to add more fields. Use dot notation for nested fields, such as
+    /// <c>"group.number"</c>.</para>
+    /// <para>Empty field names, and names with an empty part such as <c>"group..number"</c>, are ignored.</para>
     /// </summary>
-    /// <param name="fields">Field names to include.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="fields">The fields to include.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Select(string[] fields)
     {
         _selectBuilder.Select(fields);
@@ -169,12 +167,13 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Marks fields for exclusion from the response.
-    /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
-    /// <para>Delegates to the internal <see cref="SelectBuilder"/>.</para>
+    /// Leaves the given fields out of each document.
+    /// <para>Call it again to leave out more fields. Use dot notation for nested fields, such as
+    /// <c>"group.number"</c>.</para>
+    /// <para>Empty field names, and names with an empty part such as <c>"group..number"</c>, are ignored.</para>
     /// </summary>
-    /// <param name="fields">Field names to exclude.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="fields">The fields to leave out.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Exclude(string[] fields)
     {
         _selectBuilder.Exclude(fields);
@@ -183,18 +182,16 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Masks the fields returned on populated documents from a target <c>collection</c>.
-    /// <para><c>populate</c> does not choose which relationships resolve — that is
-    /// <see cref="Depth"/>'s job. It narrows what already-populated documents contain,
-    /// overriding the target collection's <c>defaultPopulate</c> config. Has no effect
-    /// unless <c>depth &gt;= 1</c>.</para>
-    /// <para>Repeated calls for the same collection merge additively. Use dot notation
-    /// for nested paths (e.g. <c>"group.number"</c>).</para>
-    /// <para>Delegates to the internal <see cref="PopulateBuilder"/>.</para>
+    /// Chooses which fields are returned for related documents from the given collection.
+    /// <para>Only affects related documents that are returned in full, so it needs
+    /// <see cref="Depth"/> set to 1 or more.</para>
+    /// <para>Call it again for the same collection to add more fields. Use dot notation for nested
+    /// fields, such as <c>"group.number"</c>.</para>
+    /// <para>An empty collection name is ignored.</para>
     /// </summary>
-    /// <param name="collection">The target collection slug (e.g. <c>"users"</c>).</param>
-    /// <param name="fields">Field names to include on populated documents.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="collection">The collection the related documents belong to, such as <c>"users"</c>.</param>
+    /// <param name="fields">The fields to return for those documents.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Populate(string collection, string[] fields)
     {
         _populateBuilder.Populate(collection, fields);
@@ -205,10 +202,9 @@ public class QueryBuilder
     /// <summary>
     /// Adds filter conditions to the query.
     /// <para>Repeated calls add to the same set of conditions.</para>
-    /// <para>Delegates to the internal <see cref="WhereBuilder"/>.</para>
     /// </summary>
     /// <param name="callback">Receives a <see cref="WhereBuilder"/> instance used to define the conditions.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Where(Action<WhereBuilder> callback)
     {
         callback(_whereBuilder);
@@ -217,12 +213,12 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Configures <c>Join Field</c> population via callback.
-    /// <para>Delegates to the internal <see cref="JoinBuilder"/> for
-    /// filtering, sorting, and limiting joined data.</para>
+    /// Configures the documents returned in join fields: lists of documents that point back to this
+    /// one, such as a post's comments.
+    /// <para>Each join field can be limited, paged, sorted, filtered or turned off on its own.</para>
     /// </summary>
-    /// <param name="callback">Receives the <see cref="JoinBuilder"/> instance.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="callback">Receives a <see cref="JoinBuilder"/> instance used to configure the join fields.</param>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public QueryBuilder Join(Action<JoinBuilder> callback)
     {
         callback(_joinBuilder);
@@ -231,11 +227,9 @@ public class QueryBuilder
     }
 
     /// <summary>
-    /// Builds the final query parameters object.
-    /// <para>Serializes all configured options into a plain
-    /// object for query string encoding.</para>
+    /// Builds the final query parameters object from all configured fields.
     /// </summary>
-    /// <returns>Query parameters ready for serialization.</returns>
+    /// <returns>The query parameters, keyed by parameter name.</returns>
     public Dictionary<string, object?> Build()
     {
         var where = _whereBuilder.Build();

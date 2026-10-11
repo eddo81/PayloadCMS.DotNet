@@ -3,28 +3,61 @@
 namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
-/// Fluent builder for Payload CMS <c>select</c> query parameters.
-///
-/// <para>Composes a set of <see cref="SelectClause"/> entries into a
-/// nested field-inclusion/exclusion tree that the
-/// <c>QueryStringEncoder</c> serializes to bracket notation
-/// (e.g. <c>select[group][number]=true</c>).</para>
-///
-/// <para>Use dot notation to target nested fields:
-/// <c>"group.number"</c> → <c>select[group][number]=true</c>.</para>
+/// Builds the list of fields to return with, or leave out of, each document.
+/// <para>Used through <see cref="QueryBuilder.Select"/> and <see cref="QueryBuilder.Exclude"/>.</para>
 /// </summary>
 public class SelectBuilder
 {
     private readonly List<SelectClause> _clauses = new();
 
     /// <summary>
-    /// Marks fields for inclusion in the response.
-    /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
-    /// <para>Fields with an empty name or an empty path segment (e.g. <c>""</c>,
-    /// <c>"group..number"</c>, <c>".number"</c>) are ignored.</para>
+    /// Determines whether any part of a dot-separated field name is empty.
     /// </summary>
-    /// <param name="fields">Field names to include.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="segments">The parts of the field name, split on <c>.</c>.</param>
+    /// <returns><c>true</c> if any part is empty, such as in <c>"group..number"</c> or <c>".number"</c>; otherwise <c>false</c>.</returns>
+    private static bool HasEmptySegment(string[] segments)
+    {
+        foreach (var segment in segments)
+        {
+            if (string.IsNullOrEmpty(segment))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Merges one field's entry into the combined <c>select</c> object.
+    /// <para>Where both hold nested fields under the same name, the nested fields are merged.
+    /// Otherwise the incoming value replaces the existing one, so a later call wins.</para>
+    /// </summary>
+    /// <param name="target">The combined object being built, changed in place.</param>
+    /// <param name="source">The entry to merge in.</param>
+    private static void MergeSelectClauses(Dictionary<string, object?> target, Dictionary<string, object?> source)
+    {
+        foreach (var (key, value) in source)
+        {
+            if (target.ContainsKey(key) && target[key] is Dictionary<string, object?> existingNested && value is Dictionary<string, object?> sourceNested)
+            {
+                MergeSelectClauses(existingNested, sourceNested);
+            }
+            else
+            {
+                target[key] = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns only the given fields of each document.
+    /// <para>Call it again to add more fields. Use dot notation for nested fields, such as
+    /// <c>"group.number"</c>.</para>
+    /// <para>Empty field names, and names with an empty part such as <c>"group..number"</c>, are ignored.</para>
+    /// </summary>
+    /// <param name="fields">The fields to include.</param>
+    /// <returns>The current <see cref="SelectBuilder"/> instance.</returns>
     public SelectBuilder Select(string[] fields)
     {
         foreach (var field in fields)
@@ -48,13 +81,13 @@ public class SelectBuilder
     }
 
     /// <summary>
-    /// Marks fields for exclusion from the response.
-    /// <para>Use dot notation for nested paths (e.g. <c>"group.number"</c>).</para>
-    /// <para>Fields with an empty name or an empty path segment (e.g. <c>""</c>,
-    /// <c>"group..number"</c>, <c>".number"</c>) are ignored.</para>
+    /// Leaves the given fields out of each document.
+    /// <para>Call it again to leave out more fields. Use dot notation for nested fields, such as
+    /// <c>"group.number"</c>.</para>
+    /// <para>Empty field names, and names with an empty part such as <c>"group..number"</c>, are ignored.</para>
     /// </summary>
-    /// <param name="fields">Field names to exclude.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <param name="fields">The fields to leave out.</param>
+    /// <returns>The current <see cref="SelectBuilder"/> instance.</returns>
     public SelectBuilder Exclude(string[] fields)
     {
         foreach (var field in fields)
@@ -78,9 +111,9 @@ public class SelectBuilder
     }
 
     /// <summary>
-    /// Builds the final <c>select</c> object by deep-merging all clauses.
+    /// Builds the final <c>select</c> object from all configured fields.
     /// </summary>
-    /// <returns>The merged field map, or <c>null</c> if no fields were configured.</returns>
+    /// <returns>The <c>select</c> object, or <c>null</c> if no fields were configured.</returns>
     public Dictionary<string, object?>? Build()
     {
         if (_clauses.Count == 0)
@@ -96,33 +129,5 @@ public class SelectBuilder
         }
 
         return result;
-    }
-
-    private static bool HasEmptySegment(string[] segments)
-    {
-        foreach (var segment in segments)
-        {
-            if (string.IsNullOrEmpty(segment))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static void MergeSelectClauses(Dictionary<string, object?> target, Dictionary<string, object?> source)
-    {
-        foreach (var (key, value) in source)
-        {
-            if (target.ContainsKey(key) && target[key] is Dictionary<string, object?> existingNested && value is Dictionary<string, object?> sourceNested)
-            {
-                MergeSelectClauses(existingNested, sourceNested);
-            }
-            else
-            {
-                target[key] = value;
-            }
-        }
     }
 }

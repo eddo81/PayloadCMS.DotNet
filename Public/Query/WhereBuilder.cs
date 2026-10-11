@@ -40,7 +40,7 @@ public class WhereBuilder
     /// <param name="field">The field to filter.</param>
     /// <param name="op">The comparison operator.</param>
     /// <param name="value">The value to compare against.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="WhereBuilder"/> instance.</returns>
     public WhereBuilder Field(string field, Operator op, object? value)
     {
         var clause = GetOrCreateClause(field);
@@ -58,7 +58,7 @@ public class WhereBuilder
     /// </para>
     /// </summary>
     /// <param name="callback">Receives a <see cref="WhereBuilder"/> instance used to define the conditions in the group.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="WhereBuilder"/> instance.</returns>
     public WhereBuilder And(Action<WhereBuilder> callback)
     {
         var builder = new WhereBuilder();
@@ -79,7 +79,7 @@ public class WhereBuilder
     /// </para>
     /// </summary>
     /// <param name="callback">Receives a <see cref="WhereBuilder"/> instance used to define the conditions of the alternative.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="WhereBuilder"/> instance.</returns>
     public WhereBuilder Or(Action<WhereBuilder> callback)
     {
         var builder = new WhereBuilder();

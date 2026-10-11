@@ -24,7 +24,7 @@ public static class QueryBuilderExtensions
     /// <param name="builder">The query builder.</param>
     /// <param name="key">The query-string parameter name.</param>
     /// <param name="value">The value to serialize for this parameter.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder AddCustomParam(this QueryBuilder builder, string key, object? value)
     {
         builder._customParams[key] = value;
@@ -43,7 +43,7 @@ public static class QueryBuilderExtensions
     /// </summary>
     /// <param name="builder">The query builder.</param>
     /// <param name="value"><c>true</c> to read draft overlays / write draft versions.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder Draft(this QueryBuilder builder, bool value)
     {
         return builder.AddCustomParam("draft", value);
@@ -55,7 +55,7 @@ public static class QueryBuilderExtensions
     /// </summary>
     /// <param name="builder">The query builder.</param>
     /// <param name="value"><c>true</c> to include soft-deleted documents.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder Trash(this QueryBuilder builder, bool value)
     {
         return builder.AddCustomParam("trash", value);
@@ -68,7 +68,7 @@ public static class QueryBuilderExtensions
     /// </summary>
     /// <param name="builder">The query builder.</param>
     /// <param name="value"><c>true</c> to mark the write as an autosave.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder Autosave(this QueryBuilder builder, bool value)
     {
         return builder.AddCustomParam("autosave", value);

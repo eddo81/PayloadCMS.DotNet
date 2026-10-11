@@ -59,7 +59,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="value">Maximum document count (default 10).</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Limit(string on, int value)
     {
         var clause = GetOrCreateClause(on);
@@ -77,7 +77,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="value">The page number.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Page(string on, int value)
     {
         var clause = GetOrCreateClause(on);
@@ -96,7 +96,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="field">The field name to sort by.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Sort(string on, string field)
     {
         if (string.IsNullOrEmpty(field))
@@ -121,7 +121,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="field">The field name to sort by.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder SortByDescending(string on, string field)
     {
         if (!string.IsNullOrEmpty(field) && !field.StartsWith('-'))
@@ -137,7 +137,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="value">Whether to include the count. Defaults to <c>true</c>.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Count(string on, bool value = true)
     {
         var clause = GetOrCreateClause(on);
@@ -156,7 +156,7 @@ public class JoinBuilder
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
     /// <param name="callback">Receives a <see cref="WhereBuilder"/> instance used to define the conditions.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Where(string on, Action<WhereBuilder> callback)
     {
         var builder = GetOrCreateWhereBuilder(on);
@@ -179,7 +179,7 @@ public class JoinBuilder
     /// called in.</para>
     /// </summary>
     /// <param name="on">The <c>Join Field</c> name.</param>
-    /// <returns>The current builder for chaining.</returns>
+    /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Disable(string on)
     {
         var clause = GetOrCreateClause(on);
