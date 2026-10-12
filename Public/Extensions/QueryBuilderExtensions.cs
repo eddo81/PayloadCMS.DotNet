@@ -3,27 +3,21 @@ using PayloadCMS.DotNet.Query;
 namespace PayloadCMS.DotNet.Extensions;
 
 /// <summary>
-/// Extension methods for <see cref="QueryBuilder"/> covering query parameters that require
-/// matching server-side configuration to be meaningful (<c>draft</c>, <c>trash</c>,
-/// <c>autosave</c>), plus the general-purpose custom parameter primitive they are built on.
-/// <para>Requires an explicit <c>using PayloadCMS.DotNet.Extensions;</c> — deliberately not part
-/// of <see cref="QueryBuilder"/>'s own members, so using them takes the same deliberate step on
-/// the client as configuring the matching feature takes on the Payload CMS instance.</para>
+/// Adds query parameters for features that must also be turned on in Payload: <c>draft</c>,
+/// <c>trash</c> and <c>autosave</c>, plus a way to send any other query parameter by name.
+/// <para>Available after adding <c>using PayloadCMS.DotNet.Extensions;</c>.</para>
 /// </summary>
 public static class QueryBuilderExtensions
 {
     /// <summary>
-    /// Registers an arbitrary custom query-string parameter — the extensibility primitive
-    /// <see cref="Draft"/>, <see cref="Trash"/>, and <see cref="Autosave"/> are themselves built
-    /// on. Intended for parameters introduced by Payload plugins or custom server-side
-    /// configuration that this library has no first-class method for.
-    /// <para>A custom parameter with a key matching a built-in one (including <c>draft</c>,
-    /// <c>trash</c>, <c>autosave</c>, or any core parameter such as <c>where</c>/<c>select</c>)
-    /// overwrites it — there is no collision guard.</para>
+    /// Adds a custom query parameter, for parameters this library has no method for, such as those
+    /// added by Payload plugins.
+    /// <para>Adding the same parameter again replaces its value. A parameter that another method
+    /// also sets, such as <c>limit</c> or <c>where</c>, replaces that method's value.</para>
     /// </summary>
-    /// <param name="builder">The query builder.</param>
-    /// <param name="key">The query-string parameter name.</param>
-    /// <param name="value">The value to serialize for this parameter.</param>
+    /// <param name="builder">The query to add the parameter to.</param>
+    /// <param name="key">The parameter's name.</param>
+    /// <param name="value">The parameter's value.</param>
     /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder AddCustomParam(this QueryBuilder builder, string key, object? value)
     {
@@ -33,16 +27,16 @@ public static class QueryBuilderExtensions
     }
 
     /// <summary>
-    /// Overlays the latest draft version of each returned document (<c>draft=true</c>).
-    /// <para>This is NOT a visibility filter — a plain find already returns documents
-    /// of every <c>_status</c>; filter on <c>_status</c> to control which documents
-    /// come back. What <c>draft=true</c> changes is the content: published documents
-    /// with a newer pending draft are returned with the draft's content instead.</para>
-    /// <para>On writes, saves the change as a draft version without touching the
-    /// published document. Requires drafts enabled on the collection/global.</para>
+    /// Works with draft versions instead of published ones.
+    /// <para>When reading, each document is returned as its newest version, published or not. It
+    /// does not change which documents are returned; filter on <c>_status</c> for that.</para>
+    /// <para>When writing, the change is saved as a draft and the published document is left as
+    /// it is.</para>
+    /// <para>Drafts must be turned on for the collection or global. Without that, a write is saved
+    /// straight to the published document, with no error.</para>
     /// </summary>
-    /// <param name="builder">The query builder.</param>
-    /// <param name="value"><c>true</c> to read draft overlays / write draft versions.</param>
+    /// <param name="builder">The query to add the parameter to.</param>
+    /// <param name="value"><c>true</c> to work with drafts.</param>
     /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder Draft(this QueryBuilder builder, bool value)
     {
@@ -50,11 +44,12 @@ public static class QueryBuilderExtensions
     }
 
     /// <summary>
-    /// Includes soft-deleted (<c>trash</c>) documents in the query.
-    /// <para>Only meaningful on collections with <c>trash</c> enabled (Payload v3).</para>
+    /// Includes documents that have been moved to the trash, alongside the others.
+    /// <para>Also needed to permanently delete a document that is already in the trash.</para>
+    /// <para>Only has an effect on collections with trash turned on in Payload.</para>
     /// </summary>
-    /// <param name="builder">The query builder.</param>
-    /// <param name="value"><c>true</c> to include soft-deleted documents.</param>
+    /// <param name="builder">The query to add the parameter to.</param>
+    /// <param name="value"><c>true</c> to include documents in the trash.</param>
     /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder Trash(this QueryBuilder builder, bool value)
     {
@@ -62,12 +57,11 @@ public static class QueryBuilderExtensions
     }
 
     /// <summary>
-    /// Marks a write as an autosave (<c>autosave=true</c>).
-    /// <para>Only meaningful on collections with <c>versions.drafts.autosave</c> configured —
-    /// same capability-gating caveat as <see cref="Draft"/>/<see cref="Trash"/>.</para>
+    /// Saves a write as an autosave of the draft.
+    /// <para>Only has an effect on collections with autosave turned on in Payload.</para>
     /// </summary>
-    /// <param name="builder">The query builder.</param>
-    /// <param name="value"><c>true</c> to mark the write as an autosave.</param>
+    /// <param name="builder">The query to add the parameter to.</param>
+    /// <param name="value"><c>true</c> to save the write as an autosave.</param>
     /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder Autosave(this QueryBuilder builder, bool value)
     {
