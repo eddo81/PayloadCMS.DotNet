@@ -285,7 +285,7 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="data">The document data to create.</param>
-    /// <param name="query">Optional <see cref="QueryBuilder"/> for write-time params — e.g. <c>Draft(true)</c> to save as a draft, or <c>Locale</c>.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Draft(true)</c> to save as a draft, or <c>Locale</c>.</param>
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The created document.</returns>
@@ -310,9 +310,11 @@ public class PayloadSDK
 
     /// <summary>
     /// Deletes multiple documents matching a query.
+    /// <para>The query must contain <c>Where</c> conditions; without them Payload rejects the request.</para>
+    /// <para>Deletes permanently, even in collections with a trash.</para>
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
-    /// <param name="query"><see cref="QueryBuilder"/> with <c>where</c> clause to select documents.</param>
+    /// <param name="query"><see cref="QueryBuilder"/> with <c>Where</c> conditions selecting the documents.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>
     /// The bulk result containing deleted documents. When some documents could not be deleted, the
@@ -346,6 +348,7 @@ public class PayloadSDK
 
     /// <summary>
     /// Deletes a single document by its ID.
+    /// <para>Deletes permanently, even in collections with a trash.</para>
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="id">The document ID.</param>
@@ -372,10 +375,11 @@ public class PayloadSDK
 
     /// <summary>
     /// Updates multiple documents matching a query.
+    /// <para>The query must contain <c>Where</c> conditions; without them Payload rejects the request.</para>
     /// </summary>
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="data">The fields to update on matching documents.</param>
-    /// <param name="query"><see cref="QueryBuilder"/> with <c>where</c> clause to select documents.</param>
+    /// <param name="query"><see cref="QueryBuilder"/> with <c>Where</c> conditions selecting the documents.</param>
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>
@@ -415,7 +419,7 @@ public class PayloadSDK
     /// <param name="slug">The <c>collection</c> slug.</param>
     /// <param name="id">The document ID.</param>
     /// <param name="data">The fields to update.</param>
-    /// <param name="query">Optional <see cref="QueryBuilder"/> for write-time params — e.g. <c>Draft(true)</c> to save the edit as a draft version, or <c>Locale</c>.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Draft(true)</c> to save the edit as a draft version, or <c>Locale</c>.</param>
     /// <param name="file">Optional file for <c>upload</c>-enabled collections.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The updated document.</returns>
@@ -475,7 +479,7 @@ public class PayloadSDK
     /// </summary>
     /// <param name="slug">The <c>global</c> slug.</param>
     /// <param name="data">The fields to update.</param>
-    /// <param name="query">Optional <see cref="QueryBuilder"/> for write-time params — e.g. <c>Draft(true)</c> to save the edit as a draft version, or <c>Locale</c>.</param>
+    /// <param name="query">Optional <see cref="QueryBuilder"/> — e.g. <c>Draft(true)</c> to save the edit as a draft version, or <c>Locale</c>.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>The updated <c>global</c> document.</returns>
     public async Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, QueryBuilder? query = null, CancellationToken cancellationToken = default)
