@@ -9,27 +9,21 @@ namespace PayloadCMS.DotNet.Extensions;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="PayloadSDK"/> as a scoped service in the DI container,
-    /// backed by a named <see cref="System.Net.Http.HttpClient"/> managed by <see cref="System.Net.Http.IHttpClientFactory"/>.
+    /// Registers <see cref="PayloadSDK"/> as a scoped service in the DI container.
+    /// <para>Each scope gets its own instance, so a credential set with <see cref="PayloadSDK.SetJwtAuth"/>
+    /// or <see cref="PayloadSDK.SetApiKeyAuth"/> applies only to that scope.</para>
     /// </summary>
     /// <param name="services">The service collection to add the SDK to.</param>
     /// <param name="baseUrl">The base URL of the Payload CMS instance (e.g. <c>https://cms.example.com</c>).</param>
     /// <param name="config">Settings applied to every request the registered SDK makes. Defaults are used when omitted.</param>
-    /// <param name="configureClient">Optional delegate to configure the underlying <see cref="System.Net.Http.HttpClient"/> (e.g. timeouts, default headers).</param>
+    /// <param name="httpClient">
+    /// Optional <see cref="HttpClient"/> instance shared by every registered instance.
+    /// The caller is responsible for its lifetime and disposal. If omitted, a shared default client is used instead.
+    /// </param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
-    public static IServiceCollection AddPayloadSDK(this IServiceCollection services, string baseUrl, PayloadSDKConfig? config = null, Action<System.Net.Http.HttpClient>? configureClient = null) {
-        services.AddHttpClient(nameof(PayloadSDK), httpClient =>
-        {
-            configureClient?.Invoke(httpClient);
-        });
-
-        services.AddScoped(provider =>
-        {
-            var factory = provider.GetRequiredService<System.Net.Http.IHttpClientFactory>();
-            var httpClient = factory.CreateClient(nameof(PayloadSDK));
-            
-            return new PayloadSDK(httpClient, baseUrl, config);
-        });
+    public static IServiceCollection AddPayloadSDK(this IServiceCollection services, string baseUrl, PayloadSDKConfig? config = null, HttpClient? httpClient = null)
+    {
+        services.AddScoped(provider => new PayloadSDK(baseUrl, config, httpClient));
 
         return services;
     }

@@ -9,7 +9,7 @@ Read TS source files directly with Read/Glob/Grep for parity reference — no HT
 
 ## Project Setup
 - Target: .NET 8.0 only (no net6.0 — do not add it back), nullable enabled, implicit usings enabled
-- Dependencies: `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Http` (DI extension), `Microsoft.SourceLink.GitHub` (build-time only)
+- Dependencies: `Microsoft.Extensions.DependencyInjection.Abstractions` (DI extension), `Microsoft.SourceLink.GitHub` (build-time only)
 - Solution: `PayloadCMS.DotNet.sln`, main project: `PayloadCMS.DotNet.csproj` (`PackageId: PayloadCMS.DotNet`, `AssemblyName: PayloadCMS.DotNet`), tests: `Tests/Payload.CMS.Tests.csproj`
 - Test project: xUnit v3, targets net8.0 only, `OutputType=Exe`
 
@@ -37,6 +37,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - **DTO `FromJson`/`ToJson` visibility**: In TypeScript, `fromJson`/`toJson` are public static methods on each DTO class and re-exported from `index.ts`. In C#, they are `internal` — the `Dictionary<string, object?>` wire format is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
 - **`PayloadError` human-readable message**: TypeScript (`Error.message`) and C# (`Exception.Message`) both surface a human-readable status-code message via inheritance. Dart's `Exception` is an interface with no `message` field — the Dart port must instead override `toString()` to return the equivalent string. Consumer-facing behaviour is identical across all three ports; only the wiring differs.
 - **`PayloadError.ServerStack`**: C# uses `ServerStack` (not `Stack`) because `Exception` has no native `Stack` property to conflict with. TypeScript uses `serverStack` (not `stack`) because `Error.stack` is already occupied by the JS call stack. Both ports use the same name — this is a coordinated cross-language choice, not a divergence.
+- **Default transport**: the official SDK takes `fetch?`, defaulting to `globalThis.fetch`. C# takes `HttpClient? httpClient = null`, defaulting to the internal `DefaultHttpClient`: one static `HttpClient` over `SocketsHttpHandler { UseCookies = false, PooledConnectionLifetime = 2 min, AutomaticDecompression = All }`. Node's `fetch` is already a shared, cookie-free transport; .NET's platform default is not, so the library builds the equivalent itself. The SDK never disposes either client. See `LIBRARY.md` item 26 and `PORTING_GUIDE.md` F13.
 
 ## Code Style (enforced across all files)
 - **Always braces** on `if`, `foreach`, `for` — no bracketless one-liners, ever
@@ -99,13 +100,15 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `FileUpload` — public `IFileUpload` sealed record implementation
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
 - `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
-- `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`
+- `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`; registers a scoped `PayloadSDK`, passing an optional `httpClient` through (no `IHttpClientFactory`)
+- `DefaultHttpClient` — internal static shared client used when no `httpClient` is passed, in `Internal/Utils/`
 - `QueryBuilderExtensions` — `AddCustomParam`, `Draft`, `Trash`, `Autosave` in `Public/Extensions/`, namespace `PayloadCMS.DotNet.Extensions` (opt-in import, deliberately not members of `QueryBuilder` itself — see CLAUDE.md's "Extensibility" backlog closure and `PROJECT_GUIDELINES.md` §5.8)
 - xUnit v3 test suite — 181 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
 - No `headers` constructor parameter — use `SetHeaders()` after construction
+- Constructor `(string baseUrl, PayloadSDKConfig? config = null, HttpClient? httpClient = null)`; an omitted `httpClient` falls back to `DefaultHttpClient.Get()`. The SDK never disposes a client — not the shared one, not a passed one
 - Uses `System.Net.Http.HttpMethod` directly (no custom enum alias needed)
 - `Fetch(url, HttpMethod? method, HttpContent? body, ct)` — no wrapper record; callers pass method/body directly. `HttpContent body` typed explicitly where ternary mixes `MultipartFormDataContent` and `StringContent`
 - JSON body → `JsonParser.Serialize(data)` → `StringContent`
@@ -339,7 +342,7 @@ revisit, not a decided change.
   `PayloadExceptionFilter` and `AddToModelState` (ASP.NET Core MVC-specific types). Two
   (`LastRequestUrlCapture`/`Handler`) are this session's own SDK Lab diagnostics, not standard-
   consumption boilerplate — the underlying need (inspect outgoing requests) is already covered by
-  the SDK's "bring your own `HttpClient`" design via `AddPayloadSDK`'s `configureClient` callback.
+  the SDK's "bring your own `HttpClient`" design via the optional `httpClient` parameter on the constructor and `AddPayloadSDK`.
   Three candidates looked promising on the surface (all zero-dependency, all already
   README-documented patterns) but each failed review on its own merits, not on cost:
   - **`DocumentDTO.As<T>()`** — rejected. Real bug report from the user: a relationship field's

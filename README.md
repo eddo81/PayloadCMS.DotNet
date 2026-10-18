@@ -20,8 +20,7 @@ dotnet add package PayloadCMS.DotNet
 ```csharp
 using PayloadCMS.DotNet;
 
-var httpClient = new System.Net.Http.HttpClient();
-var sdk = new PayloadSDK(httpClient: httpClient, baseUrl: "http://localhost:3000");
+var sdk = new PayloadSDK(baseUrl: "http://localhost:3000");
 ```
 
 ### ASP.NET Core DI
@@ -30,35 +29,37 @@ var sdk = new PayloadSDK(httpClient: httpClient, baseUrl: "http://localhost:3000
 // Program.cs
 builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com");
 
-// Or with custom HttpClient configuration:
-builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com", configureClient: httpClient =>
-{
-    httpClient.Timeout = TimeSpan.FromSeconds(30);
-});
-
 // Or with SDK configuration:
 var config = new PayloadSDKConfig { StrictEncoding = false };
 
 builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com", config: config);
+
+// Or with your own HttpClient (e.g. for a proxy or client certificate):
+var handler = new SocketsHttpHandler { UseCookies = false, Proxy = new System.Net.WebProxy("http://proxy:8080") };
+var httpClient = new HttpClient(handler);
+
+builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com", httpClient: httpClient);
 ```
 
-Inject `PayloadSDK` directly into controllers or services — it is registered as a scoped service backed by a named `IHttpClientFactory`-managed `HttpClient`. Each HTTP request gets its own `PayloadSDK` instance, which means `SetJwtAuth()`, `SetApiKeyAuth()`, and `ClearAuth()` are safe to call per-request without affecting other concurrent users.
+Inject `PayloadSDK` directly into controllers or services — it is registered as a scoped service. Each HTTP request gets its own `PayloadSDK` instance, and all instances share one `HttpClient` that does not store cookies, which means `SetJwtAuth()`, `SetApiKeyAuth()`, and `ClearAuth()` are safe to call per-request without affecting other concurrent users.
 
 ### Constructor
 
 ```csharp
 new PayloadSDK(
-    System.Net.Http.HttpClient httpClient,
     string baseUrl,
-    PayloadSDKConfig? config = null
+    PayloadSDKConfig? config = null,
+    System.Net.Http.HttpClient? httpClient = null
 )
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `httpClient` | `HttpClient` | The HTTP client instance to use. Caller owns the lifetime. |
 | `baseUrl` | `string` | Payload CMS instance URL. Trailing slashes are stripped automatically. |
 | `config` | `PayloadSDKConfig?` | Optional settings that apply to every request an SDK instance makes, omit it to use the defaults. |
+| `httpClient` | `HttpClient?` | Optional HTTP client to send requests through. Caller owns the lifetime. Omit it to use a shared client that reuses connections and stores no cookies. |
+
+> **Note:** If you pass your own `HttpClient`, turn cookies off (`UseCookies = false`), otherwise Payload's login cookie authenticates later requests on that client, even after `ClearAuth()`. Create it once and reuse it; a new `HttpClient` per request can exhaust the available sockets.
 
 ## Collections
 
@@ -447,7 +448,7 @@ DocumentDTO document = await sdk.UpdateGlobal("site-settings", data);
 
 ## Authentication
 
-Payload CMS supports several authentication mechanisms, and this library provides the corresponding tools for configuring authentication on outgoing requests. Authentication can be configured when creating the `PayloadSDK`, changed later with `SetApiKeyAuth()` or `SetJwtAuth()`, or removed with `ClearAuth()`.
+Payload CMS supports several authentication mechanisms, and this library provides the corresponding tools for configuring authentication on outgoing requests. Authentication is set with `SetApiKeyAuth()` or `SetJwtAuth()`, and removed with `ClearAuth()`.
 
 For authentication mechanisms not directly covered by the SDK, use `SetHeaders()` to supply the required headers.
 
@@ -468,7 +469,7 @@ void SetApiKeyAuth(ApiKeyAuth auth)
 using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
 
-var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+var sdk = new PayloadSDK("http://localhost:3000");
 
 // Create an instance of ApiKeyAuth with your API key
 var auth = new ApiKeyAuth("users", "your-api-key-here");
@@ -494,7 +495,7 @@ void SetJwtAuth(JwtAuth auth)
 using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
 
-var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+var sdk = new PayloadSDK("http://localhost:3000");
 
 var data = new Dictionary<string, object?>
 {

@@ -48,7 +48,7 @@ internal static class SdkFactory
     {
         var handler = new MockHandler(statusCode, responseBody);
         var httpClient = new HttpClient(handler);
-        var sdk = new PayloadSDK(httpClient, "http://localhost:3000", config);
+        var sdk = new PayloadSDK("http://localhost:3000", config, httpClient);
 
         return (sdk, handler);
     }
@@ -961,7 +961,7 @@ public class PayloadSDKTests
     {
         var handler = new MockHandler(HttpStatusCode.OK, "{}");
         var httpClient = new HttpClient(handler);
-        var sdk = new PayloadSDK(httpClient, "http://localhost:3000");
+        var sdk = new PayloadSDK("http://localhost:3000", httpClient: httpClient);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
