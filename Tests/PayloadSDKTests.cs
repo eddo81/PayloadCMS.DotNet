@@ -957,7 +957,7 @@ public class PayloadSDKTests
     // ── CancellationToken propagation ───────────────────────────
 
     [Fact]
-    public async Task Find_WithCancelledToken_ThrowsWithAbortedMessage()
+    public async Task Find_WithCancelledToken_ThrowsOperationCanceledException()
     {
         var handler = new MockHandler(HttpStatusCode.OK, "{}");
         var httpClient = new HttpClient(handler);
@@ -966,10 +966,7 @@ public class PayloadSDKTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        // _Fetch wraps TaskCanceledException into a plain Exception with an "aborted" message
-        var exception = await Assert.ThrowsAsync<Exception>(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => sdk.Find("posts", cancellationToken: cts.Token));
-
-        Assert.Contains("aborted", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

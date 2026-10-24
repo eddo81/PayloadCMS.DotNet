@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PayloadCMS.DotNet.Config;
 using PayloadCMS.DotNet.Query;
 using PayloadCMS.DotNet.Internal.Contracts;
@@ -140,9 +139,8 @@ public class PayloadSDK
 
     /// <summary>
     /// Executes an HTTP request and returns parsed JSON.
-    /// <para>Merges default headers, applies auth, parses the
-    /// response body, and normalizes errors into
-    /// <see cref="PayloadError"/> instances.</para>
+    /// <para>Merges default headers, applies auth, and parses the response body.
+    /// A non-2xx response throws <see cref="PayloadError"/>.</para>
     /// </summary>
     /// <param name="url">Fully resolved request URL.</param>
     /// <param name="method">Optional HTTP method; defaults to GET.</param>
@@ -150,7 +148,6 @@ public class PayloadSDK
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
     /// <returns>Parsed JSON, or <c>null</c> for empty responses.</returns>
     /// <exception cref="PayloadError">On non-2xx responses.</exception>
-    /// <exception cref="Exception">On network, parsing, or abort failures.</exception>
     private async Task<Dictionary<string, object?>?> Request(string url, HttpMethod? method = null, HttpContent? body = null, CancellationToken cancellationToken = default)
     {
         Dictionary<string, object?>? json = null;
@@ -177,73 +174,43 @@ public class PayloadSDK
             _auth.Apply(headers);
         }
 
-        try
+        var resolvedMethod = method ?? defaultMethod;
+        var request = new HttpRequestMessage(resolvedMethod, url);
+
+        foreach (var kvp in headers)
         {
-            var resolvedMethod = method ?? defaultMethod;
-            var request = new HttpRequestMessage(resolvedMethod, url);
-
-            foreach (var kvp in headers)
+            if (kvp.Key == "Content-Type")
             {
-                if (kvp.Key == "Content-Type")
-                {
-                    continue;
-                }
-
-                request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
+                continue;
             }
 
-            if (body != null)
-            {
-                request.Content = body;
-            }
-
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            var text = await response.Content.ReadAsStringAsync(cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new PayloadError(
-                    statusCode: (int)response.StatusCode,
-                    response: response,
-                    body: text.Length > 0 ? text : null
-                );
-            }
-
-            if (text.Length > 0)
-            {
-                json = JsonParser.Parse(text);
-            }
-
-            return json;
+            request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
         }
-        catch (Exception error)
+
+        if (body != null)
         {
-            string message = "[PayloadError] Request failed";
-
-            if (error is JsonException)
-            {
-                message = "[PayloadError] Failed to parse JSON response";
-            }
-            else if (error is HttpRequestException)
-            {
-                message = "[PayloadError] Network failure or CORS issue";
-            }
-            else if (error is TaskCanceledException)
-            {
-                message = "[PayloadError] Request was aborted or timed out";
-            }
-            else if (error is PayloadError)
-            {
-                throw;
-            }
-            else if (error is Exception)
-            {
-                message = $"[PayloadError] {error.Message}";
-            }
-
-            throw new Exception(message, error);
+            request.Content = body;
         }
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new PayloadError(
+                statusCode: (int)response.StatusCode,
+                response: response,
+                body: text.Length > 0 ? text : null
+            );
+        }
+
+        if (text.Length > 0)
+        {
+            json = JsonParser.Parse(text);
+        }
+
+        return json;
     }
 
     /// <summary>
