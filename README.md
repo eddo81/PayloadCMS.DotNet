@@ -27,6 +27,9 @@ var sdk = new PayloadSDK(baseUrl: "http://localhost:3000");
 
 ```csharp
 // Program.cs
+using PayloadCMS.DotNet.Config;
+using PayloadCMS.DotNet.Extensions;
+
 builder.Services.AddPayloadSDK(baseUrl: "https://cms.example.com");
 
 // Or with SDK configuration:
@@ -81,6 +84,8 @@ Task<PaginatedDocsDTO> Find(string slug, QueryBuilder? query = null, Cancellatio
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 PaginatedDocsDTO result = await sdk.Find("posts");
 
 // result.Docs        — List<DocumentDTO>
@@ -109,6 +114,8 @@ Task<DocumentDTO> FindById(string slug, string id, QueryBuilder? query = null, C
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 DocumentDTO document = await sdk.FindById("posts", "123");
 
 // document.Id        — "123"
@@ -150,12 +157,14 @@ Task<DocumentDTO> Create(string slug, Dictionary<string, object?> data, QueryBui
 |-----------|------|-------------|
 | `slug` | `string` | Collection slug. |
 | `data` | `Dictionary<string, object?>` | Document data. |
-| `query` | `QueryBuilder?` | Optional write-time query parameters — e.g. `Locale`, `Depth`, `Limit` etc. |
+| `query` | `QueryBuilder?` | Optional write-time query parameters — e.g. `Locale()`, `Depth()`, `Limit()` etc. |
 | `file` | `FileUpload?` | Optional file to upload (for upload-enabled collections). |
 | `cancellationToken` | `CancellationToken` | Optional cancellation token. |
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 var data = new Dictionary<string, object?>
 {
     ["title"] = "Hello World",
@@ -170,28 +179,29 @@ DocumentDTO document = await sdk.Create("posts", data);
 
 #### File Uploads
 
-Represents a file being uploaded to an upload-enabled collection. It is accepted by `Create`, `UpdateById`, and the bulk `Update` through their `file` parameter.
+Represents a file being uploaded to an upload-enabled collection. It is accepted by `Create()`, `UpdateById()`, and the bulk `Update()` through their `file` parameter, and by `Request()` through `RequestConfig.File`.
 
-Supplying a file changes how the request is sent: instead of a JSON body, the SDK sends multipart form data, with the file bytes in a `file` part and the document data in a `_payload` part. Setting `mimeType` applies that content type to the file part. If omitted, `application/octet-stream` is sent — the file part always declares a type.
+Supplying a file changes how the request is sent: instead of a JSON body, the SDK sends multipart form data, with the file bytes in a `file` part and the document data in a `_payload` part. Setting `MimeType` applies that content type to the file part. If omitted, `application/octet-stream` is sent — the file part always declares a type.
 
 ```csharp
-new FileUpload(byte[] content, string fileName, string? mimeType = null)
+new FileUpload(byte[] Content, string FileName, string? MimeType = null)
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `content` | `byte[]` | The file content. |
-| `fileName` | `string` | The filename (including extension). |
-| `mimeType` | `string?` | Optional MIME type (e.g. `image/png`). Defaults to `application/octet-stream`. |
+| `Content` | `byte[]` | The file content. |
+| `FileName` | `string` | The filename (including extension). |
+| `MimeType` | `string?` | Optional MIME type (e.g. `image/png`). Defaults to `application/octet-stream`. |
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
 using PayloadCMS.DotNet.Upload;
 
 var file = new FileUpload(
-    content: File.ReadAllBytes("photo.png"),
-    fileName: "photo.png",
-    mimeType: "image/png"
+    Content: File.ReadAllBytes("photo.png"),
+    FileName: "photo.png",
+    MimeType: "image/png"
 );
 
 var data = new Dictionary<string, object?>
@@ -221,6 +231,8 @@ Task<DocumentDTO> UpdateById(string slug, string id, Dictionary<string, object?>
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 var data = new Dictionary<string, object?>
 {
     ["title"] = "Updated Title",
@@ -247,6 +259,10 @@ Task<BulkOperationDTO> Update(string slug, Dictionary<string, object?> data, Que
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 var query = new QueryBuilder()
     .Where(where => where.Field("id", Operator.Equals, "123"));
 
@@ -280,12 +296,14 @@ Task<DocumentDTO> DeleteById(string slug, string id, QueryBuilder? query = null,
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 DocumentDTO document = await sdk.DeleteById("posts", "123");
 ```
 
 ### Delete
 
-Bulk-deletes all documents matching a query. As with `Update`, a partial failure returns the result rather than throwing.
+Bulk-deletes all documents matching a query. As with `Update()`, a partial failure returns the result rather than throwing.
 
 ```csharp
 Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken cancellationToken = default)
@@ -299,6 +317,10 @@ Task<BulkOperationDTO> Delete(string slug, QueryBuilder query, CancellationToken
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 var query = new QueryBuilder()
     .Where(where => where.Field("_status", Operator.Equals, "draft"));
 
@@ -307,7 +329,7 @@ BulkOperationDTO result = await sdk.Delete("posts", query);
 
 ## Draft, Trash & Autosave
 
-`Draft`, `Trash`, and `Autosave` correspond to optional Payload CMS features. Because these features are configured per collection, the SDK cannot determine whether they are enabled on the collection you're working with.
+`Draft()`, `Trash()`, and `Autosave()` correspond to optional Payload CMS features. Because these features are configured per collection, the SDK cannot determine whether they are enabled on the collection you're working with.
 
 The three methods are available through PayloadCMS.DotNet.Extensions:
 
@@ -333,6 +355,9 @@ On writes, `Draft(true)` saves the change as a draft without changing the publis
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Extensions;
+using PayloadCMS.DotNet.Query;
+
 // Save an edit as a draft — the published document is unchanged
 var query = new QueryBuilder().Draft(true);
 
@@ -345,11 +370,17 @@ await sdk.UpdateById("posts", "123", data, query);
 ```
 
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 // Read the published version
 DocumentDTO published = await sdk.FindById("posts", "123");
 ```
 
 ```csharp
+using PayloadCMS.DotNet.Extensions;
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 // Read the latest version, including the draft
 var query = new QueryBuilder().Draft(true);
 
@@ -386,12 +417,15 @@ Once a document has been soft-deleted, `Trash(true)` is required when retrieving
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Extensions;
+using PayloadCMS.DotNet.Query;
+
 var query = new QueryBuilder().Trash(true);
 
 await sdk.DeleteById("posts", "123", query);
 ```
 
-When performing bulk operations (`Update`, `Delete`), take care when combining `Trash(true)` with broad `where` conditions: both trashed and non-trashed documents may be included.
+When performing bulk operations (`Update()`, `Delete()`), take care when combining `Trash(true)` with broad `where` conditions: both trashed and non-trashed documents may be included.
 
 ### Autosave
 
@@ -399,6 +433,9 @@ When performing bulk operations (`Update`, `Delete`), take care when combining `
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Extensions;
+using PayloadCMS.DotNet.Query;
+
 var query = new QueryBuilder().Autosave(true);
 
 var data = new Dictionary<string, object?>
@@ -421,6 +458,9 @@ Task<DocumentDTO> FindGlobal(string slug, QueryBuilder? query = null, Cancellati
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 DocumentDTO document = await sdk.FindGlobal("site-settings");
 
 var query = new QueryBuilder().Depth(1).Locale("sv");
@@ -438,6 +478,8 @@ Task<DocumentDTO> UpdateGlobal(string slug, Dictionary<string, object?> data, Qu
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 var data = new Dictionary<string, object?>
 {
     ["siteName"] = "My Site",
@@ -494,6 +536,7 @@ void SetJwtAuth(JwtAuth auth)
 ```csharp
 using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
+using PayloadCMS.DotNet.Models.Auth;
 
 var sdk = new PayloadSDK("http://localhost:3000");
 
@@ -549,6 +592,8 @@ Task<LoginResultDTO> Login(string slug, Dictionary<string, object?> data, Cancel
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
@@ -578,9 +623,11 @@ Task<MeResultDTO> Me(string slug, CancellationToken cancellationToken = default)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 MeResultDTO me = await sdk.Me("users");
 
-// me.User       — DocumentDTO
+// me.User       — DocumentDTO, or null when the request is not authenticated
 // me.Token      — "eyJhbGciOi..."
 // me.Exp        — 1700000000
 // me.Collection — "users"
@@ -602,6 +649,8 @@ Task<RefreshResultDTO> RefreshToken(string slug, CancellationToken cancellationT
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 RefreshResultDTO result = await sdk.RefreshToken("users");
 
 // result.RefreshedToken — "eyJhbGciOi..."
@@ -625,6 +674,8 @@ Task<MessageDTO> ForgotPassword(string slug, Dictionary<string, object?> data, C
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
@@ -651,6 +702,8 @@ Task<ResetPasswordResultDTO> ResetPassword(string slug, Dictionary<string, objec
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 var data = new Dictionary<string, object?>
 {
     ["token"] = "reset-token",
@@ -679,9 +732,11 @@ Task<MessageDTO> VerifyEmail(string slug, string token, CancellationToken cancel
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 MessageDTO result = await sdk.VerifyEmail("users", "verification-token");
 
-// result.Message — "Email verified successfully."
+// result.Message — "Account verified successfully."
 ```
 
 ### Logout
@@ -699,6 +754,8 @@ Task<MessageDTO> Logout(string slug, CancellationToken cancellationToken = defau
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 MessageDTO result = await sdk.Logout("users");
 
 // result.Message — "Logout successful."
@@ -720,6 +777,8 @@ Task<MessageDTO> Unlock(string slug, Dictionary<string, object?> data, Cancellat
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Auth;
+
 var data = new Dictionary<string, object?>
 {
     ["email"] = "user@example.com",
@@ -742,6 +801,8 @@ Task<PaginatedDocsDTO> FindVersions(string slug, QueryBuilder? query = null, Can
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 PaginatedDocsDTO result = await sdk.FindVersions("posts");
 ```
 
@@ -755,6 +816,10 @@ Task<DocumentDTO> FindVersionById(string slug, string id, QueryBuilder? query = 
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Extensions;
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 DocumentDTO document = await sdk.FindVersionById("posts", "version-id");
 
 var query = new QueryBuilder().Trash(true);
@@ -772,6 +837,8 @@ Task<DocumentDTO> RestoreVersion(string slug, string id, QueryBuilder? query = n
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 DocumentDTO document = await sdk.RestoreVersion("posts", "version-id");
 ```
 
@@ -785,6 +852,8 @@ Task<PaginatedDocsDTO> FindGlobalVersions(string slug, QueryBuilder? query = nul
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 PaginatedDocsDTO result = await sdk.FindGlobalVersions("site-settings");
 ```
 
@@ -798,6 +867,8 @@ Task<DocumentDTO> FindGlobalVersionById(string slug, string id, QueryBuilder? qu
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 DocumentDTO document = await sdk.FindGlobalVersionById("site-settings", "version-id");
 ```
 
@@ -811,6 +882,8 @@ Task<DocumentDTO> RestoreGlobalVersion(string slug, string id, QueryBuilder? que
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 DocumentDTO document = await sdk.RestoreGlobalVersion("site-settings", "version-id");
 ```
 
@@ -818,13 +891,13 @@ DocumentDTO document = await sdk.RestoreGlobalVersion("site-settings", "version-
 
 The SDK provides dedicated methods for the standard Payload CMS REST API, but custom endpoints can be added. `Request()` provides an escape hatch for calling those endpoints without requiring a dedicated SDK method.
 
-The request is configured through `RequestConfig`, which lets you specify the HTTP method, path, optional request body, and query parameters. The response is returned as raw JSON rather than being mapped to one of the SDK's DTOs.
+The request is configured through `RequestConfig`, which lets you specify the HTTP method, path, optional request body, query parameters and file. The response is returned as received: the SDK does not check its status code or read its body, so a non-2xx response does not throw `PayloadError`.
 
 ### Request
-Sends a request to a custom endpoint and returns the response as raw JSON.
+Sends a request to a custom endpoint and returns the response as received.
 
 ```csharp
-Task<Dictionary<string, object?>?> Request(RequestConfig config, CancellationToken cancellationToken = default)
+Task<HttpResponseMessage> Request(RequestConfig config, CancellationToken cancellationToken = default)
 ```
 
 | Parameter | Type | Description |
@@ -842,10 +915,37 @@ var requestConfig = new RequestConfig(
   Body: new Dictionary<string, object?> { ["key"] = "value" }
 );
 
-Dictionary<string, object?>? result = await sdk.Request(requestConfig);
+using HttpResponseMessage response = await sdk.Request(requestConfig);
+
+response.EnsureSuccessStatusCode();
+
+string body = await response.Content.ReadAsStringAsync();
 ```
 
-### RequestConfig 
+The response body is yours to read: as text, as bytes or a stream, or with the JSON library of your choice.
+
+#### Example: file upload
+```csharp
+using PayloadCMS.DotNet.Config;
+using PayloadCMS.DotNet.Upload;
+
+var file = new FileUpload(
+    Content: File.ReadAllBytes("photo.png"),
+    FileName: "photo.png",
+    MimeType: "image/png"
+);
+
+var requestConfig = new RequestConfig(
+  Method: HttpMethod.Post,
+  Path: "/api/custom-upload",
+  Body: new Dictionary<string, object?> { ["alt"] = "A photo" },
+  File: file
+);
+
+using HttpResponseMessage response = await sdk.Request(requestConfig);
+```
+
+### RequestConfig
 Describes the request to be sent by `Request()`.
 
 ```csharp
@@ -853,7 +953,8 @@ new RequestConfig(
     Method: System.Net.Http.HttpMethod method,
     Path: string path,
     Body: Dictionary<string, object?>? body = null,
-    Query: QueryBuilder? query = null
+    Query: QueryBuilder? query = null,
+    File: FileUpload? file = null
 )
 ```
 
@@ -863,6 +964,8 @@ new RequestConfig(
 | `Path` | `string` | URL path appended to base URL (e.g. `/api/custom-endpoint`). |
 | `Body` | `Dictionary<string, object?>?` | Optional JSON request body. |
 | `Query` | `QueryBuilder?` | Optional query parameters. |
+| `File` | `FileUpload?` | Optional file. When set, the request is sent as multipart, with `Body` as its data. See [File Uploads](#file-uploads). |
+
 
 ## Querying
 
@@ -874,6 +977,7 @@ All methods of the `QueryBuilder` return the builder itself, allowing them to be
 
 ```csharp
 using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Models.Collection;
 using PayloadCMS.DotNet.Query;
 
 var query = new QueryBuilder()
@@ -903,6 +1007,8 @@ QueryBuilder Limit(int value)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 // The 5 most recent posts
 var query = new QueryBuilder()
     .SortByDescending("createdAt")
@@ -913,7 +1019,7 @@ var query = new QueryBuilder()
 
 ### Page
 
-Selects which page of results to return, based on the current `Limit`. Pages are 1-based, so `Page(1)` is the first page.
+Selects which page of results to return, based on the current `Limit()`. Pages are 1-based, so `Page(1)` is the first page.
 
 ```csharp
 QueryBuilder Page(int value)
@@ -925,6 +1031,9 @@ QueryBuilder Page(int value)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 // Documents 21–30
 var query = new QueryBuilder()
     .Limit(10)
@@ -955,6 +1064,9 @@ QueryBuilder Pagination(bool value)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
+
 // Every published post, in one response
 var query = new QueryBuilder()
     .Where(where => where.Field("_status", Operator.Equals, "published"))
@@ -983,6 +1095,8 @@ QueryBuilder Sort(string field)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 // Category first, then title within each category
 var query = new QueryBuilder()
     .Sort("category")
@@ -1007,6 +1121,8 @@ QueryBuilder SortByDescending(string field)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 // Featured items first, then newest within each group
 var query = new QueryBuilder()
     .SortByDescending("featured")
@@ -1033,6 +1149,9 @@ QueryBuilder Depth(int value)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 // author comes back as a full user document rather than an id
 var query = new QueryBuilder()
     .Depth(1);
@@ -1058,6 +1177,8 @@ QueryBuilder Select(string[] fields)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 // A lightweight listing — just what the UI renders
 var query = new QueryBuilder()
     .Select(new[] { "title", "createdAt" });
@@ -1087,6 +1208,8 @@ QueryBuilder Exclude(string[] fields)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 // Everything except the heavy content field
 var query = new QueryBuilder()
     .Exclude(new[] { "content" });
@@ -1122,6 +1245,9 @@ QueryBuilder Populate(string collection, string[] fields)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 // Posts with their author resolved, but only the author's name
 var query = new QueryBuilder()
     .Depth(1)
@@ -1148,6 +1274,8 @@ QueryBuilder Locale(string value)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 var query = new QueryBuilder()
     .Locale("sv");
 
@@ -1170,6 +1298,8 @@ QueryBuilder FallbackLocale(string value)
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 // Swedish only — untranslated fields come back null instead of silently showing English
 var query = new QueryBuilder()
     .Locale("sv")
@@ -1191,15 +1321,15 @@ QueryBuilder Where(Action<WhereBuilder> callback)
 |-----------|------|-------------|
 | `callback` | `Action<WhereBuilder>` | Receives a builder for describing the filter. |
 
-Calling `Where` again adds to the same filter.
+Calling `Where()` again adds to the same filter.
 
 Inside the callback:
 
 | Method | Parameters | Description |
 |--------|-----------|-------------|
-| `Field` | `string field, Operator op, object? value` | Adds a condition on a field. |
-| `And` | `Action<WhereBuilder> callback` | Adds a group of conditions that must all match. |
-| `Or` | `Action<WhereBuilder> callback` | Adds an alternative; at least one alternative must match. |
+| `Field()` | `string field, Operator op, object? value` | Adds a condition on a field. |
+| `And()` | `Action<WhereBuilder> callback` | Adds a group of conditions that must all match. |
+| `Or()` | `Action<WhereBuilder> callback` | Adds an alternative; at least one alternative must match. |
 
 #### Field
 
@@ -1215,6 +1345,9 @@ the same field are combined; if the same operator is set twice on a field, the l
 > **Dates:** `DateTime` and `DateTimeOffset` serialize as UTC ISO 8601 timestamps with millisecond precision (`2026-03-01T12:30:45.000Z`); `DateOnly` as a plain date (`2026-03-01`). A `DateTime` with `Kind.Local` is converted to UTC; with no `Kind`, it is treated as UTC.
 
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
+
 // Published posts with more than 100 views
 var query = new QueryBuilder()
     .Where(where => where
@@ -1225,6 +1358,9 @@ var query = new QueryBuilder()
 ```
 
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
+
 // A range: two operators on one field
 var query = new QueryBuilder()
     .Where(where => where
@@ -1263,9 +1399,12 @@ public enum Operator
 #### And
 
 Adds a group of conditions that must all match. Each call adds one group, and groups can contain
-further `And` and `Or` groups. It is also the way to apply the same operator to one field twice:
+further `And()` and `Or()` groups. It is also the way to apply the same operator to one field twice:
 
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
+
 // Published posts whose title contains both "release" and "notes"
 var query = new QueryBuilder()
     .Where(where => where
@@ -1282,6 +1421,9 @@ Adds an alternative; at least one alternative must match. Each call adds one alt
 condition inside the same callback must match for that alternative to match.
 
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
+
 // Published, and in one of two categories
 var query = new QueryBuilder()
     .Where(where => where
@@ -1293,6 +1435,9 @@ var query = new QueryBuilder()
 ```
 
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Query;
+
 // Either featured with more than 100 views, or in the "news" category
 var query = new QueryBuilder()
     .Where(where => where
@@ -1328,16 +1473,20 @@ Inside the callback:
 
 | Method | Parameters | Description |
 |--------|-----------|-------------|
-| `Limit` | `string on, int value` | Maximum joined documents to return. |
-| `Page` | `string on, int value` | Page of joined documents. |
-| `Sort` | `string on, string field` | Sort joined documents ascending. |
-| `SortByDescending` | `string on, string field` | Sort joined documents descending. |
-| `Count` | `string on, bool value = true` | Include a total count of joined documents. |
-| `Where` | `string on, Action<WhereBuilder> callback` | Filter joined documents. The callback works like `Where` on the query. |
-| `Disable` | `string on` | Omit this join field from the response. |
+| `Limit()` | `string on, int value` | Maximum joined documents to return. |
+| `Page()` | `string on, int value` | Page of joined documents. |
+| `Sort()` | `string on, string field` | Sort joined documents ascending. |
+| `SortByDescending()` | `string on, string field` | Sort joined documents descending. |
+| `Count()` | `string on, bool value = true` | Include a total count of joined documents. |
+| `Where()` | `string on, Action<WhereBuilder> callback` | Filter joined documents. The callback works like `Where()` on the query. |
+| `Disable()` | `string on` | Omit this join field from the response. |
 
 #### Example
 ```csharp
+using PayloadCMS.DotNet.Enums;
+using PayloadCMS.DotNet.Models.Collection;
+using PayloadCMS.DotNet.Query;
+
 // Posts, each with their 5 newest comments mentioning "hello"
 var query = new QueryBuilder()
     .Join(join =>
@@ -1355,6 +1504,8 @@ A join field can also be switched off. Disabling names the field and a disabled
 field is omitted from the document entirely rather than returned empty:
 
 ```csharp
+using PayloadCMS.DotNet.Query;
+
 var query = new QueryBuilder()
     .Join(join => join.Disable("comments"));
 
@@ -1386,11 +1537,13 @@ public static class DocumentDTOExtensions
 Define your domain model — no attributes needed for fields whose names match the CMS field names (case-insensitively), and use `[JsonPropertyName]` only where an explicit mapping is required:
 
 ```csharp
+using System.Text.Json.Serialization;
+
 public class BlogPost
 {
-    public string Id { get; set; }
-    public string Title { get; set; }
-    public string Content { get; set; }
+    public string? Id { get; set; }
+    public string? Title { get; set; }
+    public string? Content { get; set; }
     public DateTime? CreatedAt { get; set; }
     [JsonPropertyName("publishedAt")]
     public DateTime? PublishedAt { get; set; }
@@ -1400,6 +1553,8 @@ public class BlogPost
 Then map from the DTO in a single call:
 
 ```csharp
+using PayloadCMS.DotNet.Models.Collection;
+
 DocumentDTO dto = await sdk.FindById("posts", "123");
 BlogPost post = dto.As<BlogPost>();
 
@@ -1410,7 +1565,7 @@ List<BlogPost> posts = result.Docs.Select(doc => doc.As<BlogPost>()).ToList();
 
 ### DocumentDTO
 
-Returned by single-document operations (`Create`, `FindById`, `UpdateById`, `DeleteById`, globals, versions).
+Returned by single-document operations (`Create()`, `FindById()`, `UpdateById()`, `DeleteById()`, globals, versions).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1421,7 +1576,7 @@ Returned by single-document operations (`Create`, `FindById`, `UpdateById`, `Del
 
 ### PaginatedDocsDTO
 
-Returned by paginated read operations (`Find`, `FindVersions`, `FindGlobalVersions`).
+Returned by paginated read operations (`Find()`, `FindVersions()`, `FindGlobalVersions()`).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1437,7 +1592,7 @@ Returned by paginated read operations (`Find`, `FindVersions`, `FindGlobalVersio
 
 ### BulkOperationDTO
 
-Returned by bulk write operations (`Update`, `Delete`). Maps to Payload's `BulkOperationResult` response shape.
+Returned by bulk write operations (`Update()`, `Delete()`). Maps to Payload's `BulkOperationResult` response shape.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1469,7 +1624,9 @@ See [Error Handling](#error-handling) for usage examples.
 
 ## Error Handling
 
-`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code. The one exception is a bulk `Update` or `Delete` that partly succeeded — see [Update](#update).
+`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code. The one exception is a bulk `Update()` or `Delete()` that partly succeeded — see [Update](#update). `Request()` never throws `PayloadError`: it returns the response as received — see [Custom Endpoints](#custom-endpoints).
+
+Other failures surface as .NET's own exceptions: `OperationCanceledException` when the request is cancelled or the client's timeout elapses, `HttpRequestException` when the server cannot be reached, and `System.Text.Json.JsonException` when a successful response body is not a JSON object.
 
 ```csharp
 public class PayloadError : Exception
@@ -1487,7 +1644,7 @@ public class PayloadError : Exception
 | `StatusCode` | `int` | HTTP status code. |
 | `Response` | `HttpResponseMessage?` | The originating HTTP response. |
 | `Message` | `string` | Human-readable status code message (from `Exception`). |
-| `Body` | `string?` | The raw unparsed JSON response body, if available. |
+| `Body` | `string?` | The raw unparsed response body, if available. |
 | `ServerStack` | `string?` | Server-side stack trace. Payload CMS includes this in development mode only. |
 | `Result` | `IReadOnlyList<RequestErrorDTO>` | Parsed entries from `errors[]` in the response body. |
 
@@ -1497,6 +1654,7 @@ Each entry in `Result` is an [`RequestErrorDTO`](#requesterrordto).
 
 ```csharp
 using PayloadCMS.DotNet;
+using PayloadCMS.DotNet.Models.Collection;
 using PayloadCMS.DotNet.Models.Errors;
 
 try
@@ -1512,9 +1670,13 @@ catch (PayloadError ex)
         Console.WriteLine($"{entry.Name ?? "error"}: {entry.Message}");
     }
 }
+catch (OperationCanceledException)
+{
+    // Cancelled, or the client's timeout elapsed
+}
 catch (Exception ex)
 {
-    // Network failure, timeout, or parsing error
+    // Network failure, or a response body that is not a JSON object
 }
 ```
 
@@ -1582,6 +1744,9 @@ public class ValidationError
 Then use it when catching a `PayloadError`:
 
 ```csharp
+using PayloadCMS.DotNet;
+using PayloadCMS.DotNet.Models.Errors;
+
 catch (PayloadError error)
 {
     foreach (RequestErrorDTO result in error.Result)
@@ -1608,7 +1773,7 @@ catch (PayloadError error)
 
 Payload CMS can be extended with plugins and custom server-side functionality without requiring changes to this SDK. Because the SDK works against Payload CMS's REST API rather than a fixed schema, most extensions can be used through the existing API.
 
-- **New collections or fields** — use the existing `Find`, `Create`, `Update`, etc. methods. Collection slugs are passed as strings, and `DocumentDTO.Json` exposes fields returned by the API.
+- **New collections or fields** — use the existing `Find()`, `Create()`, `Update()`, etc. methods. Collection slugs are passed as strings, and `DocumentDTO.Json` exposes fields returned by the API.
 - **Custom REST endpoints** — use [`Request()`](#custom-endpoints) for endpoints not covered by the built-in methods.
 - **Custom query parameters** — use `AddCustomParam()` for query parameters not represented by `QueryBuilder`.
 
@@ -1618,10 +1783,11 @@ Payload CMS can be extended with plugins and custom server-side functionality wi
 
 | Method | Parameters | Description |
 |--------|-----------|-------------|
-| `AddCustomParam` | `string key, object? value` | Registers an arbitrary query-string parameter. |
+| `AddCustomParam()` | `string key, object? value` | Registers an arbitrary query-string parameter. |
 
 ```csharp
 using PayloadCMS.DotNet.Extensions;
+using PayloadCMS.DotNet.Query;
 
 var query = new QueryBuilder()
     .AddCustomParam("myPluginParam", "value");

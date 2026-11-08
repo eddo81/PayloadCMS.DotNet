@@ -1,10 +1,12 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using PayloadCMS.DotNet;
 using PayloadCMS.DotNet.Config;
 using PayloadCMS.DotNet.Enums;
 using PayloadCMS.DotNet.Extensions;
 using PayloadCMS.DotNet.Query;
+using PayloadCMS.DotNet.Upload;
 using PayloadCMS.DotNet.Models;
 
 namespace Payload.CMS.Tests;
@@ -724,9 +726,23 @@ public class PayloadSDKTests
 
         var result = await sdk.Me("users");
 
+        Assert.NotNull(result.User);
         Assert.Equal("u1", result.User.Id);
         Assert.Equal("users", result.Collection);
         Assert.Contains("/api/users/me", handler.LastRequest!.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task Me_WhenNotAuthenticated_ReturnsNullUser()
+    {
+        const string json = """
+            { "user": null, "message": "Account" }
+            """;
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.OK, json);
+
+        var result = await sdk.Me("users");
+
+        Assert.Null(result.User);
     }
 
     // ── RefreshToken ────────────────────────────────────────────
@@ -819,17 +835,54 @@ public class PayloadSDKTests
     // ── Request escape hatch ────────────────────────────────────
 
     [Fact]
-    public async Task Request_Get_ReturnsRawJson()
+    public async Task Request_Get_ReturnsResponseAsReceived()
     {
         const string json = """{ "docs": [] }""";
         var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, json);
 
         var config = new RequestConfig(HttpMethod.Get, "/api/posts");
-        var result = await sdk.Request(config);
+        var response = await sdk.Request(config);
 
-        Assert.NotNull(result);
-        Assert.True(result.ContainsKey("docs"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(json, await response.Content.ReadAsStringAsync());
         Assert.Equal(HttpMethod.Get, handler.LastRequest!.Method);
+    }
+
+    [Fact]
+    public async Task Request_NonSuccessStatus_ReturnsResponseWithoutThrowing()
+    {
+        const string json = """{ "errors": [{ "message": "Not Found" }] }""";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.NotFound, json);
+
+        var response = await sdk.Request(new RequestConfig(HttpMethod.Get, "/api/missing"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(json, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Request_WithoutBodyOrFile_SendsNoContent()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, "{}");
+
+        await sdk.Request(new RequestConfig(HttpMethod.Get, "/api/posts"));
+
+        Assert.Null(handler.LastRequest!.Content);
+    }
+
+    [Fact]
+    public async Task Request_WithFile_SendsMultipart()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, "{}");
+
+        var file = new FileUpload(new byte[] { 1, 2, 3 }, "photo.png", "image/png");
+        var body = new Dictionary<string, object?> { ["alt"] = "A photo" };
+        await sdk.Request(new RequestConfig(HttpMethod.Post, "/api/media", body, File: file));
+
+        Assert.IsType<MultipartFormDataContent>(handler.LastRequest!.Content);
+        var sent = await handler.LastRequest.Content!.ReadAsStringAsync();
+        Assert.Contains("name=_payload", sent);
+        Assert.Contains("A photo", sent);
     }
 
     [Fact]
@@ -840,9 +893,8 @@ public class PayloadSDKTests
 
         var requestBody = new Dictionary<string, object?> { ["title"] = "Hello" };
         var config = new RequestConfig(HttpMethod.Post, "/api/posts", requestBody);
-        var result = await sdk.Request(config);
+        await sdk.Request(config);
 
-        Assert.NotNull(result);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         var responseBody = await handler.LastRequest.Content!.ReadAsStringAsync();
         Assert.Contains("Hello", responseBody);
@@ -968,5 +1020,19 @@ public class PayloadSDKTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => sdk.Find("posts", cancellationToken: cts.Token));
+    }
+
+    // ── Response body ───────────────────────────────────────────
+
+    [Theory]
+    [InlineData("[1,2]")]
+    [InlineData("42")]
+    [InlineData("null")]
+    [InlineData("")]
+    public async Task Find_WithNonObjectBody_ThrowsJsonException(string responseBody)
+    {
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.OK, responseBody);
+
+        await Assert.ThrowsAsync<JsonException>(() => sdk.Find("posts"));
     }
 }

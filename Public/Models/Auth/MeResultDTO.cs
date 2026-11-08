@@ -8,8 +8,8 @@ namespace PayloadCMS.DotNet.Models.Auth;
 /// </summary>
 public sealed class MeResultDTO
 {
-    /// <summary>The currently authenticated user document.</summary>
-    public DocumentDTO User { get; set; } = new();
+    /// <summary>The authenticated user, or <c>null</c> when the request is not authenticated.</summary>
+    public DocumentDTO? User { get; set; } = null;
     /// <summary>The active JWT token.</summary>
     public string Token { get; set; } = "";
     /// <summary>The token expiration as a Unix timestamp.</summary>
