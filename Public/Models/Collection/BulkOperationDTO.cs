@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using PayloadCMS.DotNet.Models.Errors;
 
 namespace PayloadCMS.DotNet.Models.Collection;
@@ -13,27 +14,27 @@ public sealed class BulkOperationDTO
     /// <summary>Any per-document errors that occurred during the operation.</summary>
     public List<BulkOperationErrorDTO> Errors { get; set; } = new();
 
-    internal static BulkOperationDTO FromJson(Dictionary<string, object?> json)
+    internal static BulkOperationDTO FromJson(JsonObject json)
     {
         var dto = new BulkOperationDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("docs") && data["docs"] is System.Collections.IList docList)
+        if (data.ContainsKey("docs") && data["docs"] is JsonArray docList)
         {
             foreach (var item in docList)
             {
-                if (item is Dictionary<string, object?> docItem)
+                if (item is JsonObject docItem)
                 {
                     dto.Docs.Add(DocumentDTO.FromJson(docItem));
                 }
             }
         }
 
-        if (data.ContainsKey("errors") && data["errors"] is System.Collections.IList errorList)
+        if (data.ContainsKey("errors") && data["errors"] is JsonArray errorList)
         {
             foreach (var item in errorList)
             {
-                if (item is Dictionary<string, object?> errorItem)
+                if (item is JsonObject errorItem)
                 {
                     dto.Errors.Add(BulkOperationErrorDTO.FromJson(errorItem));
                 }

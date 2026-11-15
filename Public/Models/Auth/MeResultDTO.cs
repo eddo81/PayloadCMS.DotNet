@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal.Utils;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Models.Collection;
 
 namespace PayloadCMS.DotNet.Models.Auth;
@@ -12,8 +13,8 @@ public sealed class MeResultDTO
     public DocumentDTO? User { get; set; } = null;
     /// <summary>The active JWT token.</summary>
     public string Token { get; set; } = "";
-    /// <summary>The token expiration as a Unix timestamp.</summary>
-    public int Exp { get; set; } = 0;
+    /// <summary>The token expiration as a Unix timestamp, in seconds.</summary>
+    public long Exp { get; set; } = 0;
     /// <summary>The collection the user belongs to.</summary>
     public string Collection { get; set; } = "";
     /// <summary>The authentication strategy in use.</summary>
@@ -24,32 +25,32 @@ public sealed class MeResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>me</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static MeResultDTO FromJson(Dictionary<string, object?> json)
+    internal static MeResultDTO FromJson(JsonObject json)
     {
         var dto = new MeResultDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("user") && data["user"] is Dictionary<string, object?> userObject)
+        if (data.ContainsKey("user") && data["user"] is JsonObject userObject)
         {
             dto.User = DocumentDTO.FromJson(userObject);
         }
 
-        if (data.ContainsKey("token") && data["token"] is string tokenValue)
+        if (data.ContainsKey("token") && data["token"].TryConvertString() is string tokenValue)
         {
             dto.Token = tokenValue;
         }
 
         if (data.ContainsKey("exp"))
         {
-            dto.Exp = JsonParser.TryConvertInt(data["exp"]) ?? dto.Exp;
+            dto.Exp = data["exp"].TryConvertLong() ?? dto.Exp;
         }
 
-        if (data.ContainsKey("collection") && data["collection"] is string collectionValue)
+        if (data.ContainsKey("collection") && data["collection"].TryConvertString() is string collectionValue)
         {
             dto.Collection = collectionValue;
         }
 
-        if (data.ContainsKey("strategy") && data["strategy"] is string strategyValue)
+        if (data.ContainsKey("strategy") && data["strategy"].TryConvertString() is string strategyValue)
         {
             dto.Strategy = strategyValue;
         }

@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal;
 
 namespace PayloadCMS.DotNet.Query;
 
@@ -196,20 +197,21 @@ public class JoinBuilder
     /// Builds the final <c>joins</c> object from all configured join fields.
     /// </summary>
     /// <returns>The <c>joins</c> object, or <c>null</c> if no join fields were configured.</returns>
-    public Dictionary<string, object?>? Build()
+    internal JsonObject? Build()
     {
         if (_clauses.Count == 0)
         {
             return null;
         }
 
-        var result = new Dictionary<string, object?>();
+        var result = new JsonObject();
 
         foreach (var clause in _clauses)
         {
             foreach (var kvp in clause.Build())
             {
-                result[kvp.Key] = kvp.Value;
+                // A node can belong to one tree only, so it is attached as a copy.
+                result[kvp.Key] = kvp.Value?.DeepClone();
             }
         }
 

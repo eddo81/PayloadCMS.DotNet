@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Models.Errors;
 
@@ -49,13 +50,13 @@ public class PayloadError : Exception
         Response = response;
         Body = body;
 
-        Dictionary<string, object?>? json = null;
+        JsonObject? json = null;
 
         if (body != null)
         {
             try
             {
-                json = JsonParser.Parse(body);
+                json = body.ParseJson();
             }
             catch
             {
@@ -63,18 +64,18 @@ public class PayloadError : Exception
             }
         }
 
-        if (json != null && json.ContainsKey("stack") && json["stack"] is string stackValue)
+        if (json != null && json.ContainsKey("stack") && json["stack"].TryConvertString() is string stackValue)
         {
             ServerStack = stackValue;
         }
 
         var result = new List<RequestErrorDTO>();
 
-        if (json != null && json.ContainsKey("errors") && json["errors"] is List<object?> errors)
+        if (json != null && json.ContainsKey("errors") && json["errors"] is JsonArray errors)
         {
             foreach (var item in errors)
             {
-                if (item is not Dictionary<string, object?> error)
+                if (item is not JsonObject error)
                 {
                     continue;
                 }

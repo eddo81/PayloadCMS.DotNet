@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 
 namespace PayloadCMS.DotNet.Models.Errors;
 
@@ -14,21 +17,21 @@ public sealed class BulkOperationErrorDTO
     /// <summary>The error message.</summary>
     public string Message { get; set; } = "";
 
-    internal static BulkOperationErrorDTO FromJson(Dictionary<string, object?> json)
+    internal static BulkOperationErrorDTO FromJson(JsonObject json)
     {
         var dto = new BulkOperationErrorDTO();
 
-        if (json.ContainsKey("id") && json["id"] is string idValue)
+        if (json.ContainsKey("id") && json["id"].TryConvertString() is string idValue)
         {
             dto.Id = idValue;
         }
-        else if (json.ContainsKey("id") && (json["id"] is int || json["id"] is long || json["id"] is double))
+        else if (json.ContainsKey("id") && json["id"]?.GetValueKind() == JsonValueKind.Number)
         {
             // Postgres/SQLite adapters return numeric ids — normalize to string.
-            dto.Id = Convert.ToString(json["id"], CultureInfo.InvariantCulture)!;
+            dto.Id = Convert.ToString(json["id"].ToClr(), CultureInfo.InvariantCulture)!;
         }
 
-        if (json.ContainsKey("message") && json["message"] is string messageValue)
+        if (json.ContainsKey("message") && json["message"].TryConvertString() is string messageValue)
         {
             dto.Message = messageValue;
         }

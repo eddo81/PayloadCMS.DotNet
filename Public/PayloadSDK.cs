@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using PayloadCMS.DotNet.Config;
 using PayloadCMS.DotNet.Query;
 using PayloadCMS.DotNet.Internal.Contracts;
@@ -158,7 +159,7 @@ public class PayloadSDK
 
         if (config.Body != null || config.File != null)
         {
-            request.Content = config.File != null ? FormDataBuilder.Build(config.File, data) : JsonParser.Serialize(data);
+            request.Content = config.File != null ? FormDataBuilder.Build(config.File, data) : data.ToJsonContent();
         }
 
         return await _httpClient.SendAsync(request, cancellationToken);
@@ -176,7 +177,7 @@ public class PayloadSDK
     /// <returns>The parsed JSON object.</returns>
     /// <exception cref="PayloadError">On non-2xx responses.</exception>
     /// <exception cref="JsonException">On a response body that is not a JSON object.</exception>
-    private async Task<Dictionary<string, object?>> Request(string url, HttpMethod? method = null, HttpContent? body = null, CancellationToken cancellationToken = default)
+    private async Task<JsonObject> Request(string url, HttpMethod? method = null, HttpContent? body = null, CancellationToken cancellationToken = default)
     {
         var resolvedMethod = method ?? HttpMethod.Get;
         var request = new HttpRequestMessage(resolvedMethod, url);
@@ -220,7 +221,7 @@ public class PayloadSDK
             );
         }
 
-        var json = JsonParser.Parse(text);
+        var json = text.ParseJson();
 
         if (json == null)
         {
@@ -276,12 +277,12 @@ public class PayloadSDK
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Post;
-        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
+        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
-        Dictionary<string, object?> doc = new();
+        JsonObject doc = new();
 
-        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        if (json.ContainsKey("doc") && json["doc"] is JsonObject value)
         {
             doc = value;
         }
@@ -308,7 +309,7 @@ public class PayloadSDK
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Delete;
 
-        Dictionary<string, object?>? json;
+        JsonObject? json;
 
         try
         {
@@ -344,9 +345,9 @@ public class PayloadSDK
         var method = HttpMethod.Delete;
 
         var json = await Request(url, method, cancellationToken: cancellationToken);
-        Dictionary<string, object?> doc = new();
+        JsonObject doc = new();
 
-        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        if (json.ContainsKey("doc") && json["doc"] is JsonObject value)
         {
             doc = value;
         }
@@ -373,9 +374,9 @@ public class PayloadSDK
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Patch;
-        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
+        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : data.ToJsonContent();
 
-        Dictionary<string, object?>? json;
+        JsonObject? json;
 
         try
         {
@@ -410,12 +411,12 @@ public class PayloadSDK
     {
         var url = AppendQueryString($"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/{Uri.EscapeDataString(id)}", query);
         var method = HttpMethod.Patch;
-        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : JsonParser.Serialize(data);
+        HttpContent body = file != null ? FormDataBuilder.Build(file, data) : data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
-        Dictionary<string, object?> doc = new();
+        JsonObject doc = new();
 
-        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        if (json.ContainsKey("doc") && json["doc"] is JsonObject value)
         {
             doc = value;
         }
@@ -471,12 +472,12 @@ public class PayloadSDK
     {
         var url = AppendQueryString($"{_baseUrl}/api/globals/{Uri.EscapeDataString(slug)}", query);
         var method = HttpMethod.Post;
-        var body = JsonParser.Serialize(data);
+        var body = data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
-        Dictionary<string, object?> result = new();
+        JsonObject result = new();
 
-        if (json.ContainsKey("result") && json["result"] is Dictionary<string, object?> value)
+        if (json.ContainsKey("result") && json["result"] is JsonObject value)
         {
             result = value;
         }
@@ -585,9 +586,9 @@ public class PayloadSDK
         var method = HttpMethod.Post;
 
         var json = await Request(url, method, cancellationToken: cancellationToken);
-        Dictionary<string, object?> doc = new();
+        JsonObject doc = new();
 
-        if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value)
+        if (json.ContainsKey("doc") && json["doc"] is JsonObject value)
         {
             doc = value;
         }
@@ -610,7 +611,7 @@ public class PayloadSDK
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/login";
         var method = HttpMethod.Post;
-        var body = JsonParser.Serialize(data);
+        var body = data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
         var dto = LoginResultDTO.FromJson(json);
@@ -663,7 +664,7 @@ public class PayloadSDK
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/forgot-password";
         var method = HttpMethod.Post;
-        var body = JsonParser.Serialize(data);
+        var body = data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
         var dto = MessageDTO.FromJson(json);
@@ -682,7 +683,7 @@ public class PayloadSDK
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/reset-password";
         var method = HttpMethod.Post;
-        var body = JsonParser.Serialize(data);
+        var body = data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
         var dto = ResetPasswordResultDTO.FromJson(json);
@@ -737,7 +738,7 @@ public class PayloadSDK
     {
         var url = $"{_baseUrl}/api/{Uri.EscapeDataString(slug)}/unlock";
         var method = HttpMethod.Post;
-        var body = JsonParser.Serialize(data);
+        var body = data.ToJsonContent();
 
         var json = await Request(url, method, body, cancellationToken);
         var dto = MessageDTO.FromJson(json);

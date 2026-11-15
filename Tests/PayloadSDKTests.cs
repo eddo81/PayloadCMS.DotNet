@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Net;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using PayloadCMS.DotNet;
@@ -182,6 +184,92 @@ public class PayloadSDKTests
 
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Contains("draft=true", handler.LastRequest.RequestUri!.Query);
+    }
+
+    private const string CreatedDocJson = """
+        { "doc": { "id": "new1", "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z" } }
+        """;
+
+    [Fact]
+    public async Task Create_WithUnspecifiedDateTimeInBody_SendsUtcInstantEndingInZ()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, CreatedDocJson);
+        var data = new Dictionary<string, object?>
+        {
+            ["publishedAt"] = new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Unspecified),
+        };
+
+        await sdk.Create("posts", data);
+
+        var sent = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        Assert.Equal("""{"publishedAt":"2026-03-15T10:30:00.000Z"}""", sent);
+    }
+
+    [Fact]
+    public async Task Create_WithDateTimeOffsetInBody_SendsTheSameInstantInUtc()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, CreatedDocJson);
+        var data = new Dictionary<string, object?>
+        {
+            ["publishedAt"] = new DateTimeOffset(2026, 3, 15, 12, 30, 0, TimeSpan.FromHours(2)),
+        };
+
+        await sdk.Create("posts", data);
+
+        var sent = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        Assert.Equal("""{"publishedAt":"2026-03-15T10:30:00.000Z"}""", sent);
+    }
+
+    [Fact]
+    public async Task Create_WithBigIntegerInBody_SendsItsDigits()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, CreatedDocJson);
+        var data = new Dictionary<string, object?>
+        {
+            ["views"] = BigInteger.Parse("12345678901234567890", CultureInfo.InvariantCulture),
+        };
+
+        await sdk.Create("posts", data);
+
+        var sent = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        Assert.Equal("""{"views":12345678901234567890}""", sent);
+    }
+
+    [Fact]
+    public async Task Create_WithNaNInBody_ThrowsBeforeSending()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, CreatedDocJson);
+        var data = new Dictionary<string, object?> { ["views"] = double.NaN };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => sdk.Create("posts", data));
+
+        Assert.Null(handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task Create_WithFileAndUnspecifiedDateTime_SendsUtcInstantInPayloadPart()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.Created, CreatedDocJson);
+        var data = new Dictionary<string, object?>
+        {
+            ["takenAt"] = new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Unspecified),
+        };
+        var file = new PayloadCMS.DotNet.Upload.FileUpload(new byte[] { 1, 2, 3 }, "photo.png", "image/png");
+
+        await sdk.Create("media", data, file: file);
+
+        var multipart = Assert.IsType<MultipartFormDataContent>(handler.LastRequest!.Content);
+        string? payloadText = null;
+
+        foreach (var part in multipart)
+        {
+            if (part.Headers.ContentDisposition!.Name!.Trim('"') == "_payload")
+            {
+                payloadText = await part.ReadAsStringAsync();
+            }
+        }
+
+        Assert.Equal("""{"takenAt":"2026-03-15T10:30:00.000Z"}""", payloadText);
     }
 
     [Fact]
@@ -1034,5 +1122,19 @@ public class PayloadSDKTests
         var (sdk, _) = SdkFactory.Create(HttpStatusCode.OK, responseBody);
 
         await Assert.ThrowsAsync<JsonException>(() => sdk.Find("posts"));
+    }
+
+    // ── Query values ────────────────────────────────────────────
+
+    [Fact]
+    public async Task Find_WithTimeSpanWhereValue_SendsItsSerializedText()
+    {
+        var (sdk, handler) = SdkFactory.Create(HttpStatusCode.OK, "{}");
+        var query = new QueryBuilder()
+            .Where(where => where.Field("duration", Operator.Equals, TimeSpan.FromMinutes(90)));
+
+        await sdk.Find("posts", query);
+
+        Assert.Contains("where%5Bduration%5D%5Bequals%5D=01%3A30%3A00", handler.LastRequest!.RequestUri!.OriginalString);
     }
 }

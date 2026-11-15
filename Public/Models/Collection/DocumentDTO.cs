@@ -1,4 +1,7 @@
 ﻿using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 
 namespace PayloadCMS.DotNet.Models.Collection;
 
@@ -24,29 +27,29 @@ public sealed class DocumentDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static DocumentDTO FromJson(Dictionary<string, object?> json)
+    internal static DocumentDTO FromJson(JsonObject json)
     {
         var dto = new DocumentDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        dto.Json = data;
+        dto.Json = data.ToDictionary();
 
-        if (data.ContainsKey("id") && data["id"] is string idValue)
+        if (data.ContainsKey("id") && data["id"].TryConvertString() is string idValue)
         {
             dto.Id = idValue;
         }
-        else if (data.ContainsKey("id") && (data["id"] is int || data["id"] is long || data["id"] is double))
+        else if (data.ContainsKey("id") && data["id"]?.GetValueKind() == JsonValueKind.Number)
         {
             // Postgres/SQLite adapters return numeric ids — normalize to string.
-            dto.Id = Convert.ToString(data["id"], CultureInfo.InvariantCulture)!;
+            dto.Id = Convert.ToString(data["id"].ToClr(), CultureInfo.InvariantCulture)!;
         }
 
-        if (data.ContainsKey("createdAt") && data["createdAt"] is string createdAtString && createdAtString != "" && DateTime.TryParse(createdAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime createdAtDate))
+        if (data.ContainsKey("createdAt") && data["createdAt"].TryConvertString() is string createdAtString && createdAtString != "" && DateTime.TryParse(createdAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime createdAtDate))
         {
             dto.CreatedAt = createdAtDate;
         }
 
-        if (data.ContainsKey("updatedAt") && data["updatedAt"] is string updatedAtString && updatedAtString != "" && DateTime.TryParse(updatedAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime updatedAtDate))
+        if (data.ContainsKey("updatedAt") && data["updatedAt"].TryConvertString() is string updatedAtString && updatedAtString != "" && DateTime.TryParse(updatedAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime updatedAtDate))
         {
             dto.UpdatedAt = updatedAtDate;
         }
@@ -59,12 +62,11 @@ public sealed class DocumentDTO
     /// </summary>
     /// <param name="dto">The instance to serialize.</param>
     /// <returns>A plain JSON object for transport.</returns>
-    internal static Dictionary<string, object?> ToJson(DocumentDTO dto)
+    internal static JsonObject ToJson(DocumentDTO dto)
     {
-        var result = new Dictionary<string, object?>(dto.Json)
-        {
-            ["id"] = dto.Id
-        };
+        var result = dto.Json.ToNode()!.AsObject();
+
+        result["id"] = dto.Id;
 
         if (dto.CreatedAt.HasValue)
         {

@@ -1,4 +1,6 @@
-﻿namespace PayloadCMS.DotNet.Internal.Contracts;
+﻿using System.Text.Json.Nodes;
+
+namespace PayloadCMS.DotNet.Internal.Contracts;
 
 /// <summary>
 /// Contract for a serializable query clause strategy.
@@ -11,5 +13,5 @@ internal interface IClause
     /// <returns>
     /// A nested object for query string encoding.
     ///</returns>
-    Dictionary<string, object?> Build();
+    JsonObject Build();
 }

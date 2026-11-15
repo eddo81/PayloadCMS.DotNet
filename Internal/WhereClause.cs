@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal.Contracts;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Contracts;
 using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Enums;
 
@@ -12,7 +13,7 @@ internal class WhereClause : IClause
     /// <summary>The field the operators apply to.</summary>
     public readonly string Field;
 
-    private readonly Dictionary<string, object?> _operators = new();
+    private readonly Dictionary<string, JsonNode?> _operators = new();
 
     public WhereClause(string field)
     {
@@ -25,7 +26,7 @@ internal class WhereClause : IClause
     /// </summary>
     /// <param name="op">The comparison operator.</param>
     /// <param name="value">The value to compare against.</param>
-    public void Set(Operator op, object? value)
+    public void Set(Operator op, JsonNode? value)
     {
         _operators[op.ToStringValue()] = value;
     }
@@ -34,11 +35,17 @@ internal class WhereClause : IClause
     /// Serializes the clause into a <c>field[operator]=value</c> structure.
     /// </summary>
     /// <returns>The field with each of its operators.</returns>
-    public Dictionary<string, object?> Build()
+    public JsonObject Build()
     {
-        var inner = new Dictionary<string, object?>(_operators);
+        var inner = new JsonObject();
 
-        var result = new Dictionary<string, object?>
+        foreach (var (op, value) in _operators)
+        {
+            // A node can belong to one tree only, so it is attached as a copy.
+            inner[op] = value?.DeepClone();
+        }
+
+        var result = new JsonObject
         {
             [Field] = inner
         };

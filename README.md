@@ -1340,7 +1340,7 @@ the same field are combined; if the same operator is set twice on a field, the l
 |-----------|------|-------------|
 | `field` | `string` | Field name to filter on. Supports dot notation for nested fields. |
 | `op` | `Operator` | Comparison to apply. |
-| `value` | `object?` | Value to compare against. |
+| `value` | `object?` | Value to compare against: a string, number, boolean, date, list or object. Throws if the value can't be sent as JSON, such as `NaN` or an object that references itself. Later changes to the value are ignored. |
 
 > **Dates:** `DateTime` and `DateTimeOffset` serialize as UTC ISO 8601 timestamps with millisecond precision (`2026-03-01T12:30:45.000Z`); `DateOnly` as a plain date (`2026-03-01`). A `DateTime` with `Kind.Local` is converted to UTC; with no `Kind`, it is treated as UTC.
 
@@ -1626,7 +1626,7 @@ See [Error Handling](#error-handling) for usage examples.
 
 `PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code. The one exception is a bulk `Update()` or `Delete()` that partly succeeded — see [Update](#update). `Request()` never throws `PayloadError`: it returns the response as received — see [Custom Endpoints](#custom-endpoints).
 
-Other failures surface as .NET's own exceptions: `OperationCanceledException` when the request is cancelled or the client's timeout elapses, `HttpRequestException` when the server cannot be reached, and `System.Text.Json.JsonException` when a successful response body is not a JSON object.
+Other failures surface as .NET's own exceptions: `OperationCanceledException` when the request is cancelled or the client's timeout elapses, `HttpRequestException` when the server cannot be reached, and `System.Text.Json.JsonException` when a successful response body is not a JSON object. An invalid query value throws as soon as it is passed to `Field()` or `AddCustomParam()` (see [Field](#field)).
 
 ```csharp
 public class PayloadError : Exception
@@ -1783,7 +1783,7 @@ Payload CMS can be extended with plugins and custom server-side functionality wi
 
 | Method | Parameters | Description |
 |--------|-----------|-------------|
-| `AddCustomParam()` | `string key, object? value` | Registers an arbitrary query-string parameter. |
+| `AddCustomParam()` | `string key, object? value` | Registers an arbitrary query-string parameter. Accepts the same values as `Field()`. |
 
 ```csharp
 using PayloadCMS.DotNet.Extensions;

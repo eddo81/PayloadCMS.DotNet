@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal.Utils;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 
 namespace PayloadCMS.DotNet.Models.Collection;
 
@@ -31,60 +32,60 @@ public sealed class PaginatedDocsDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static PaginatedDocsDTO FromJson(Dictionary<string, object?> json)
+    internal static PaginatedDocsDTO FromJson(JsonObject json)
     {
         var dto = new PaginatedDocsDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("docs") && data["docs"] is System.Collections.IList docList)
+        if (data.ContainsKey("docs") && data["docs"] is JsonArray docList)
         {
             foreach (var item in docList)
             {
-                if (item is Dictionary<string, object?> docItem)
+                if (item is JsonObject docItem)
                 {
                     dto.Docs.Add(DocumentDTO.FromJson(docItem));
                 }
             }
         }
 
-        if (data.ContainsKey("hasNextPage") && data["hasNextPage"] is bool hasNextPageValue)
+        if (data.ContainsKey("hasNextPage") && data["hasNextPage"].TryConvertBool() is bool hasNextPageValue)
         {
             dto.HasNextPage = hasNextPageValue;
         }
 
-        if (data.ContainsKey("hasPrevPage") && data["hasPrevPage"] is bool hasPrevPageValue)
+        if (data.ContainsKey("hasPrevPage") && data["hasPrevPage"].TryConvertBool() is bool hasPrevPageValue)
         {
             dto.HasPrevPage = hasPrevPageValue;
         }
 
         if (data.ContainsKey("limit"))
         {
-            dto.Limit = JsonParser.TryConvertInt(data["limit"]) ?? dto.Limit;
+            dto.Limit = data["limit"].TryConvertInt() ?? dto.Limit;
         }
 
         if (data.ContainsKey("totalDocs"))
         {
-            dto.TotalDocs = JsonParser.TryConvertInt(data["totalDocs"]) ?? dto.TotalDocs;
+            dto.TotalDocs = data["totalDocs"].TryConvertInt() ?? dto.TotalDocs;
         }
 
         if (data.ContainsKey("totalPages"))
         {
-            dto.TotalPages = JsonParser.TryConvertInt(data["totalPages"]) ?? dto.TotalPages;
+            dto.TotalPages = data["totalPages"].TryConvertInt() ?? dto.TotalPages;
         }
 
         if (data.ContainsKey("page"))
         {
-            dto.Page = JsonParser.TryConvertInt(data["page"]);
+            dto.Page = data["page"].TryConvertInt();
         }
 
         if (data.ContainsKey("nextPage"))
         {
-            dto.NextPage = JsonParser.TryConvertInt(data["nextPage"]);
+            dto.NextPage = data["nextPage"].TryConvertInt();
         }
 
         if (data.ContainsKey("prevPage"))
         {
-            dto.PrevPage = JsonParser.TryConvertInt(data["prevPage"]);
+            dto.PrevPage = data["prevPage"].TryConvertInt();
         }
 
         return dto;

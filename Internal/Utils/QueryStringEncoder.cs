@@ -1,4 +1,6 @@
 ﻿using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace PayloadCMS.DotNet.Internal.Utils;
 /// <summary>
@@ -32,7 +34,7 @@ internal class QueryStringEncoder
     /// </summary>
     /// <param name="obj">The object to serialize.</param>
     /// <returns>The query string (prefixed with <c>?</c>), or empty string.</returns>
-    public string Stringify(Dictionary<string, object?> obj)
+    public string Stringify(JsonObject obj)
     {
         var result = Serialize(obj, parentKey: "") ?? "";
 
@@ -80,32 +82,12 @@ internal class QueryStringEncoder
     }
 
     /// <summary>
-    /// Determines whether a value is a serializable primitive.
-    /// </summary>
-    /// <param name="value">The value to inspect.</param>
-    /// <returns><c>true</c> if serializable as a terminal node.</returns>
-    private bool IsPrimitive(object? value)
-    {
-        return value is string || value is int || value is long || value is double || value is float || value is decimal || value is bool || value is char || DateSerializer.IsDateType(value) || value is Guid;
-    }
-
-    /// <summary>
-    /// Determines whether a value is a plain dictionary object.
-    /// </summary>
-    /// <param name="value">The value to inspect.</param>
-    /// <returns><c>true</c> if the value is a nested object.</returns>
-    private bool IsPlainObject(object? value)
-    {
-        return value is Dictionary<string, object?>;
-    }
-
-    /// <summary>
     /// Recursively serializes an object into query string segments.
     /// </summary>
     /// <param name="obj">The object to serialize.</param>
     /// <param name="parentKey">The accumulated key path (e.g. <c>where[title]</c>).</param>
     /// <returns>A query string fragment, or <c>null</c> if empty.</returns>
-    private string? Serialize(Dictionary<string, object?> obj, string parentKey)
+    private string? Serialize(JsonObject obj, string parentKey)
     {
         var segments = new List<string>();
 
@@ -125,35 +107,28 @@ internal class QueryStringEncoder
             }
 
             // Handle primitive values first — these are terminal nodes in the structure.
-            if (IsPrimitive(value))
+            if (value is JsonValue primitive)
             {
-                var encoded = SerializePrimitive(encodedKey, value);
-                if (encoded != null)
-                {
-                    segments.Add(encoded);
-                }
+                segments.Add(SerializePrimitive(encodedKey, primitive));
                 continue;
             }
 
-            // Handle arrays recursively. Uses IList to support List<T> of any element type.
-            if (value is System.Collections.IList arr)
+            // Handle arrays recursively.
+            if (value is JsonArray arr)
             {
                 SerializeArray(arr, encodedKey, segments);
                 continue;
             }
 
             // Recursively serialize nested objects into query segments.
-            if (IsPlainObject(value))
+            if (value is JsonObject nestedObj)
             {
-                var nested = Serialize((Dictionary<string, object?>)value, encodedKey);
+                var nested = Serialize(nestedObj, encodedKey);
                 if (nested != null)
                 {
                     segments.Add(nested);
                 }
-                continue;
             }
-
-            // Values with no unambiguous textual form are skipped.
         }
 
         var joined = string.Join("&", segments);
@@ -166,7 +141,7 @@ internal class QueryStringEncoder
     /// <param name="arr">The array to serialize.</param>
     /// <param name="parentKey">The current key path (e.g. <c>where[tags]</c>).</param>
     /// <param name="segments">The accumulated query segments to append to.</param>
-    private void SerializeArray(System.Collections.IList arr, string parentKey, List<string> segments)
+    private void SerializeArray(JsonArray arr, string parentKey, List<string> segments)
     {
         for (int i = 0; i < arr.Count; i++)
         {
@@ -181,35 +156,28 @@ internal class QueryStringEncoder
             }
 
             // Handle primitive values first — these are terminal nodes in the structure.
-            if (IsPrimitive(value))
+            if (value is JsonValue primitive)
             {
-                var encoded = SerializePrimitive(elementKey, value);
-                if (encoded != null)
-                {
-                    segments.Add(encoded);
-                }
+                segments.Add(SerializePrimitive(elementKey, primitive));
                 continue;
             }
 
             // Handle nested arrays recursively.
-            if (value is System.Collections.IList nestedArr)
+            if (value is JsonArray nestedArr)
             {
                 SerializeArray(nestedArr, elementKey, segments);
                 continue;
             }
 
             // Recursively serialize nested objects into query segments.
-            if (IsPlainObject(value))
+            if (value is JsonObject nestedObj)
             {
-                var nested = Serialize((Dictionary<string, object?>)value, elementKey);
+                var nested = Serialize(nestedObj, elementKey);
                 if (nested != null)
                 {
                     segments.Add(nested);
                 }
-                continue;
             }
-
-            // Values with no unambiguous textual form are skipped.
         }
     }
 
@@ -218,22 +186,18 @@ internal class QueryStringEncoder
     /// </summary>
     /// <param name="key">The full key path (e.g. <c>where[title][equals]</c>).</param>
     /// <param name="value">The primitive value to encode.</param>
-    /// <returns>A <c>key=value</c> string, or <c>null</c> if unsupported.</returns>
-    private string? SerializePrimitive(string key, object? value)
+    /// <returns>A <c>key=value</c> string.</returns>
+    private string SerializePrimitive(string key, JsonValue value)
     {
-        if (DateSerializer.IsDateType(value))
+        // A string is written as its value. A number or boolean is written as its JSON literal,
+        // which is culture-invariant and lowercase.
+        var text = value.ToJsonString();
+
+        if (value.GetValueKind() == JsonValueKind.String)
         {
-            return $"{key}={SafeEncode(DateSerializer.Serialize(value))}";
+            text = value.GetValue<string>();
         }
 
-        // Serialize bool as lowercase "true"/"false" — C# ToString() gives "True"/"False".
-        if (value is bool b)
-        {
-            return $"{key}={SafeEncode(b ? "true" : "false")}";
-        }
-
-        // Invariant culture — plain ToString() would render 3.14 as "3,14" under
-        // decimal-comma locales, and "," is deliberately left unescaped.
-        return $"{key}={SafeEncode(Convert.ToString(value, CultureInfo.InvariantCulture)!)}";
+        return $"{key}={SafeEncode(text)}";
     }
 }

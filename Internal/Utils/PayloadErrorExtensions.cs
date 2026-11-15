@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace PayloadCMS.DotNet.Internal.Utils;
 
@@ -12,18 +13,18 @@ internal static class PayloadErrorExtensions
     /// </summary>
     /// <param name="error">The error to inspect.</param>
     /// <returns>The parsed response body, or <c>null</c> when it was not a bulk response.</returns>
-    internal static Dictionary<string, object?>? AsBulkOperationResult(this PayloadError error)
+    internal static JsonObject? AsBulkOperationResult(this PayloadError error)
     {
         if (error.StatusCode != 400 || error.Body == null)
         {
             return null;
         }
 
-        Dictionary<string, object?>? json;
+        JsonObject? json;
 
         try
         {
-            json = JsonParser.Parse(error.Body);
+            json = error.Body.ParseJson();
         }
         catch (JsonException)
         {

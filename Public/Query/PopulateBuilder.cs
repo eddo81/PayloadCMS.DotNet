@@ -1,4 +1,6 @@
-﻿namespace PayloadCMS.DotNet.Query;
+﻿using System.Text.Json.Nodes;
+
+namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Builds the fields to return for related documents, collection by collection.
@@ -40,9 +42,9 @@ public class PopulateBuilder
     /// Builds the final <c>populate</c> object from all configured collections.
     /// </summary>
     /// <returns>The <c>populate</c> object, or <c>null</c> if no fields were configured.</returns>
-    public Dictionary<string, object?>? Build()
+    internal JsonObject? Build()
     {
-        var result = new Dictionary<string, object?>();
+        var result = new JsonObject();
 
         foreach (var (collection, selectBuilder) in _masks)
         {

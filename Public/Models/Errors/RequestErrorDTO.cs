@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 namespace PayloadCMS.DotNet.Models.Errors;
 
 /// <summary>
@@ -30,24 +32,24 @@ public sealed class RequestErrorDTO
     /// </summary>
     public string? Field { get; set; }
 
-    internal static RequestErrorDTO FromJson(Dictionary<string, object?> json)
+    internal static RequestErrorDTO FromJson(JsonObject json)
     {
         var result = new RequestErrorDTO
         {
-            Json = json,
+            Json = json.ToDictionary(),
         };
 
-        if (json.ContainsKey("name") && json["name"] is string name)
+        if (json.ContainsKey("name") && json["name"].TryConvertString() is string name)
         {
             result.Name = name;
         }
 
-        if (json.ContainsKey("message") && json["message"] is string messageValue)
+        if (json.ContainsKey("message") && json["message"].TryConvertString() is string messageValue)
         {
             result.Message = messageValue;
         }
 
-        if (json.ContainsKey("field") && json["field"] is string fieldValue)
+        if (json.ContainsKey("field") && json["field"].TryConvertString() is string fieldValue)
         {
             result.Field = fieldValue;
         }

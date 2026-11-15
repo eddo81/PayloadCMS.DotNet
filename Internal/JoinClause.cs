@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal.Contracts;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Contracts;
 
 namespace PayloadCMS.DotNet.Internal;
 
@@ -16,7 +17,7 @@ internal class JoinClause : IClause
     public int? Page;
     public string? Sort;
     public bool? Count;
-    public Dictionary<string, object?>? Where;
+    public JsonObject? Where;
 
     /// <summary>Whether this join field is switched off for the query.</summary>
     public bool Disabled;
@@ -30,9 +31,9 @@ internal class JoinClause : IClause
     /// Collects the options configured for this join field.
     /// </summary>
     /// <returns>The options object that sits under the join field's name.</returns>
-    private Dictionary<string, object?> Join()
+    private JsonObject Join()
     {
-        var join = new Dictionary<string, object?>();
+        var join = new JsonObject();
 
         if (Limit != null) 
         {
@@ -56,7 +57,8 @@ internal class JoinClause : IClause
 
         if (Where != null) 
         {
-            join["where"] = Where;
+            // A node can belong to one tree only, so it is attached as a copy.
+            join["where"] = Where.DeepClone();
         }
 
         return join;
@@ -66,11 +68,18 @@ internal class JoinClause : IClause
     /// Serializes the clause into a Payload-compatible join structure.
     /// </summary>
     /// <returns>A nested object keyed by the join field name.</returns>
-    public Dictionary<string, object?> Build()
+    public JsonObject Build()
     {
-        var result = new Dictionary<string, object?>
+        JsonNode join = false;
+
+        if (!Disabled)
         {
-            [On] = Disabled ? false : Join()
+            join = Join();
+        }
+
+        var result = new JsonObject
+        {
+            [On] = join
         };
 
         return result;

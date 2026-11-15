@@ -16,12 +16,12 @@ Read TS source files directly with Read/Glob/Grep for parity reference — no HT
 ## Core Type Mappings
 | TypeScript | C# |
 |---|---|
-| `Json` / `JsonObject` | `Dictionary<string, object?>` |
-| `JsonValue` | `object?` |
-| `JsonArray` | `List<object?>` |
+| `Json` / `JsonObject` | public: `Dictionary<string, object?>`; internal: `JsonObject` (`System.Text.Json.Nodes`) |
+| `JsonValue` | public: `object?`; internal: `JsonNode?` |
+| `JsonArray` | public: `List<object?>`; internal: `JsonArray` |
 | `string \| undefined` | `string?` |
 | `number` (DTO pagination) | `int` |
-| `number` (exp timestamp) | `int` |
+| `number` (exp timestamp) | `long` (Unix seconds; an `int` ends in 2038, `LIBRARY.md` item 33) |
 | `Date` | `DateTime` |
 | `Promise<T>` | `Task<T>` |
 | `Record<string, string>` (headers) | `Dictionary<string, string>` |
@@ -34,7 +34,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 ## Port Divergences
 - **HttpMethod**: TypeScript and Dart use a custom `HttpMethod` enum (no native type). C# uses `System.Net.Http.HttpMethod` (platform-native). This is a justified platform divergence — `HttpMethod` is NOT exported from the C# package.
 - **`RequestConfig`**: Public `sealed record` in `PayloadCMS.DotNet.Config`, used as the options object for `PayloadSDK.Request()`. Mirrors the official SDK's `request({ method, path, json?, args?, file? })`: `RequestConfig(Method, Path, Body?, Query?, File?)`. The public `Request(RequestConfig)` returns the raw `HttpResponseMessage` — no status check, no parsing — like the official `request()`, which returns the raw `Response` (`LIBRARY.md` item 27). The private `Request(url, method?, body?)` serves the typed methods: it throws `PayloadError` for a non-2xx and parses the body — no private wrapper record.
-- **DTO `FromJson`/`ToJson` visibility**: In TypeScript, `fromJson`/`toJson` are public static methods on each DTO class and re-exported from `index.ts`. In C#, they are `internal` — the `Dictionary<string, object?>` wire format is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
+- **DTO `FromJson`/`ToJson` visibility**: In TypeScript, `fromJson`/`toJson` are public static methods on each DTO class and re-exported from `index.ts`. In C#, they are `internal` — the parsed `JsonObject` tree is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
 - **`PayloadError` human-readable message**: TypeScript (`Error.message`) and C# (`Exception.Message`) both surface a human-readable status-code message via inheritance. Dart's `Exception` is an interface with no `message` field — the Dart port must instead override `toString()` to return the equivalent string. Consumer-facing behaviour is identical across all three ports; only the wiring differs.
 - **`PayloadError.ServerStack`**: C# uses `ServerStack` (not `Stack`) because `Exception` has no native `Stack` property to conflict with. TypeScript uses `serverStack` (not `stack`) because `Error.stack` is already occupied by the JS call stack. Both ports use the same name — this is a coordinated cross-language choice, not a divergence.
 - **Default transport**: the official SDK takes `fetch?`, defaulting to `globalThis.fetch`. C# takes `HttpClient? httpClient = null`, defaulting to the internal `DefaultHttpClient`: one static `HttpClient` over `SocketsHttpHandler { UseCookies = false, PooledConnectionLifetime = 2 min, AutomaticDecompression = All }`. Node's `fetch` is already a shared, cookie-free transport; .NET's platform default is not, so the library builds the equivalent itself. The SDK never disposes either client. See `LIBRARY.md` item 26 and `PORTING_GUIDE.md` F13.
@@ -72,10 +72,21 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `public` for everything under `lib/public/` (builders, client, models, config, enums)
 - Private fields: underscore prefix (`_field`)
 - Builders return `this` for fluent chaining
-- DTOs are **sealed classes** with `{ get; set; }` properties and defaults — matches TS mutable class + field defaults pattern. `internal static FromJson` factory colocated on each class — `internal` because the `Dictionary<string, object?>` wire format is an implementation detail, not part of the public API.
-- Number extraction in DTOs delegates to `JsonParser.TryConvertInt(object? v)` (handles `int`/`long`/`double` → `int`)
+- DTOs are **sealed classes** with `{ get; set; }` properties and defaults — matches TS mutable class + field defaults pattern. `internal static FromJson(JsonObject json)` factory colocated on each class — `internal` because the parsed JSON tree is an implementation detail, not part of the public API. Only the public `Json` properties are converted, via `data.ToDictionary()`.
+- Field reads in DTOs delegate to the `JsonNode?` extensions `TryConvertInt()`, `TryConvertLong()`, `TryConvertString()` and `TryConvertBool()` (`data["page"].TryConvertInt()`), each `null` when the value is not of that JSON kind; both number reads truncate fractions, and `TryConvertInt()` wraps whole numbers outside the `int` range. `Exp` uses `TryConvertLong()`
 - No separate options classes — use named/optional parameters directly
 - Inline options pattern (TS) → named parameters (C#): `Find(string slug, QueryBuilder? query = null)`
+
+## Workflow
+
+- **Staleness check after every completed item** (added 2026-11-08). When an item is done (code,
+  docs or harness), check every doc for content it made stale before calling it finished:
+  `CLAUDE.md`, `LIBRARY.md`, `PROJECT_GUIDELINES.md`, `PORTING_GUIDE.md`, `TYPESCRIPT_BACKPORT.md`
+  and `README.md`. Grep for each fact the item changed (method names and signatures, return types,
+  defaults, behaviour, test and harness counts, status lines, roadmap entries) and verify every hit
+  against the code or a measurement, not memory. Fix what is wrong; dated records of past work
+  (e.g. "181 tests pass" inside an older item) are history and stay as written. Report what was
+  checked and what changed.
 
 ## Implementation Status
 
@@ -87,7 +98,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `WhereClause` (one field's operators), `JoinClause`, `SelectClause` — internal clause strategy (`AndClause`/`OrClause` removed 2026-10-04)
 - `FormDataBuilder` — multipart form data builder
 - `QueryStringEncoder` — full recursive implementation complete
-- `JsonParser` — JSON serialization, deserialization, CLR conversion, and `TryConvertInt`
+- `JsonExtensions` (replaced `JsonParser`, 2026-11-14) — extension methods for JSON serialization (`ToJsonString`, `ToJsonContent`), deserialization (`ParseJson` → `JsonObject?`, `ToClr`, `ToDictionary`), value reads (`TryConvertInt`, `TryConvertLong`, `TryConvertString`, `TryConvertBool`), `ToNode`, plus the shared `JsonSerializerOptions` (date and `BigInteger` converters) used for every value sent, in query and body
 - `DocumentDTO`, `PaginatedDocsDTO`, `TotalDocsDTO`, `BulkOperationDTO` — collection DTOs (sealed classes)
 - `LoginResultDTO`, `MeResultDTO`, `RefreshResultDTO`, `ResetPasswordResultDTO`, `MessageDTO` — auth DTOs (sealed classes)
 - `WhereBuilder` — public fluent builder mirroring Payload's `Where` one-to-one: `Field(field, op, value)` (operators share a field, same operator = last write wins), `And(callback)`/`Or(callback)` (one element per call, chained). Entry points `QueryBuilder.Where(callback)` and `JoinBuilder.Where(on, callback)`; no overloads. In `Public/Query/`, namespace `PayloadCMS.DotNet.Query`. See `PROJECT_GUIDELINES.md` §5.2 and `LIBRARY.md` item 11
@@ -99,39 +110,47 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `RequestErrorDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
 - `FileUpload` — public `IFileUpload` sealed record implementation
 - `RequestConfig` — public `sealed record` in `PayloadCMS.DotNet.Config`; options object for `PayloadSDK.Request()`
-- `PayloadSDK` — main client (all public methods + `Fetch`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
+- `PayloadSDK` — main client (all public methods + private `Request(url, …)`, `AppendQueryString`, `NormalizeUrl`) in namespace `PayloadCMS.DotNet`
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`; registers a scoped `PayloadSDK`, passing an optional `httpClient` through (no `IHttpClientFactory`)
 - `DefaultHttpClient` — internal static shared client used when no `httpClient` is passed, in `Internal/Utils/`
 - `QueryBuilderExtensions` — `AddCustomParam`, `Draft`, `Trash`, `Autosave` in `Public/Extensions/`, namespace `PayloadCMS.DotNet.Extensions` (opt-in import, deliberately not members of `QueryBuilder` itself — see CLAUDE.md's "Extensibility" backlog closure and `PROJECT_GUIDELINES.md` §5.8)
-- xUnit v3 test suite — 189 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`
+- xUnit v3 test suite — 300 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`, plus `QueryInvariantTests` and `ResponseInvariantTests`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
 - No `headers` constructor parameter — use `SetHeaders()` after construction
 - Constructor `(string baseUrl, PayloadSDKConfig? config = null, HttpClient? httpClient = null)`; an omitted `httpClient` falls back to `DefaultHttpClient.Get()`. The SDK never disposes a client — not the shared one, not a passed one
 - Uses `System.Net.Http.HttpMethod` directly (no custom enum alias needed)
-- `Fetch(url, HttpMethod? method, HttpContent? body, ct)` — no wrapper record; callers pass method/body directly. `HttpContent body` typed explicitly where ternary mixes `MultipartFormDataContent` and `StringContent`
-- JSON body → `JsonParser.Serialize(data)` → `StringContent`
+- Private `Request(url, HttpMethod? method, HttpContent? body, ct)` serves the typed methods — no wrapper record; callers pass method/body directly. `HttpContent body` typed explicitly where ternary mixes `MultipartFormDataContent` and `StringContent`. The public `Request(RequestConfig)` builds and sends its own request and returns the `HttpResponseMessage` as received
+- JSON body → `data.ToJsonContent()` → `StringContent`; multipart `_payload` → `data.ToJsonString()` (same options)
 - File body → `FormDataBuilder.Build(file, data)` → `MultipartFormDataContent`
 - `Content-Type` header is skipped when adding to `HttpRequestMessage.Headers` (handled by `HttpContent` automatically)
-- JSON parsing via `JsonParser.Parse` / `JsonParser.ConvertElement` (centralized in `Internal/Utils/JsonParser.cs`)
-- `doc`/`result` unwrapping pattern: pre-initialize `Dictionary<string, object?> doc = new();`, then `if (json.ContainsKey("doc") && json["doc"] is Dictionary<string, object?> value) { doc = value; }`
-- `IAuthCredential` and `IFileUpload` are `public` (required for public API surface)
+- JSON parsing via `text.ParseJson()` (returns `JsonObject?`; a repeated key keeps its last value, `PORTING_GUIDE.md` F15) and `node.ToClr()` / `ToDictionary()` for the public `Json` properties (centralized in `Internal/Utils/JsonExtensions.cs`). Private `Request` returns `Task<JsonObject>`
+- `doc`/`result` unwrapping pattern: pre-initialize `JsonObject doc = new();`, then `if (json.ContainsKey("doc") && json["doc"] is JsonObject value) { doc = value; }`
+- `IAuthCredential` and `IFileUpload` are `internal` (under `Internal/Contracts/`); the public surface exposes the concrete `ApiKeyAuth`, `JwtAuth` and `FileUpload` types
 - `CancellationToken cancellationToken = default` on all public async methods, propagated to `SendAsync` and `ReadAsStringAsync`
 
 ## QueryStringEncoder Rules (critical for parity)
+- **Which values become what** is specified by the portable rule in `PROJECT_GUIDELINES.md` §5.4
+  (adopted 2026-11-14, same in every port, `LIBRARY.md` item 31): a value is converted once, at
+  entry, by `System.Text.Json` (shared SDK options) into a `JsonNode`, and the SDK works on that tree
+  only; whatever STJ can write can be sent, in query and body alike. Query side implemented in
+  preview.30 (item 31 stage 2): `Field()`/`AddCustomParam()` call `ToNode()`, so a `NaN`/infinite
+  number throws `ArgumentException` and a value that contains itself throws `JsonException` when it
+  is passed; the encoder takes a `JsonObject` and has no type checks of its own. Builders' `Build()`
+  is internal and returns `JsonObject`
 - Nested objects: bracket notation `where[title][equals]=foo`
 - Arrays: indexed notation `where[or][0][title]=foo`
 - `select`: bracket-object notation `select[title]=true&select[author]=true` (NOT comma-separated)
 - `sort`: comma-separated (NOT indexed) `sort=a,-b`
-- `null`/`undefined` values: skipped
+- `null` values: kept, rendered as an empty value `key=` (`LIBRARY.md` item 14 — dropping them removed filters)
 - `bool`: serialized as `"true"` / `"false"` strings
-- `DateTime`: ISO 8601 string
-- `[`, `]`, `,` left unescaped after `Uri.EscapeDataString()` — replace `%5B`→`[`, `%5D`→`]`, `%2C`→`,`
-- No `?` prefix by default (controlled by `_addQueryPrefix`, defaults true)
+- `DateTime`: ISO 8601 UTC, millisecond precision, always `Z` (`DateSerializer`, item 20)
+- Escaping follows `PayloadSDKConfig.StrictEncoding`, **default `true`**: `[`, `]`, `,` are percent-encoded (`%5B`, `%5D`, `%2C`). With `StrictEncoding = false` they are left literal after `Uri.EscapeDataString()`. (`QueryStringEncoder`'s own constructor defaults to non-strict, but the SDK always passes the config value.)
+- `?` prefix added when there are parameters (`_addQueryPrefix`, defaults `true`); no parameters gives an empty string
 
 ## JoinBuilder Notes
-- `Build()` returns `Dictionary<string, object?>?` (null if no clauses)
+- `Build()` is internal and returns `JsonObject?` (null if no clauses)
 - `Disable(on)` sets `JoinClause.Disabled`, which builds as `{ on: false }` (`joins[on]=false`); no global form — Payload discards `joins=false` (`LIBRARY.md` item 16)
 - Get-or-create pattern keyed by collection name (`On` field)
 
@@ -396,7 +415,7 @@ revisit, not a decided change.
   any REST/SDK client, official or not.
 - Custom `Content-Type` set via `SetHeaders()` is dropped in C# (HttpContent owns the header) —
   edge case with no Payload-relevant consequence; TS would honor it. Documented divergence.
-- `TryConvertInt` truncates `long`/`double` — mirrors loose JS number semantics; timestamps fit.
+- `TryConvertInt` truncates `long`/`double` — mirrors loose JS number semantics. Pagination and counts stay `int`; `Exp` became `long` (2026-11-15, `LIBRARY.md` item 33) because a Unix timestamp does not fit after 2038-01-19.
 - **Empty-`where` bulk `Update`/`Delete`: no client-side guard** (decision 2026-07-07, after full
   design discussion — do not re-propose). The server 400 ("Missing 'where' query…") is
   authoritative and its message is fully surfaced via `PayloadError.Result`; consumers should

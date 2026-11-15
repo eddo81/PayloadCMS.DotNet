@@ -1,4 +1,6 @@
-﻿using PayloadCMS.DotNet.Models.Collection;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
+using PayloadCMS.DotNet.Models.Collection;
 
 namespace PayloadCMS.DotNet.Models.Auth;
 
@@ -17,17 +19,17 @@ public sealed class ResetPasswordResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>reset-password</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static ResetPasswordResultDTO FromJson(Dictionary<string, object?> json)
+    internal static ResetPasswordResultDTO FromJson(JsonObject json)
     {
         var dto = new ResetPasswordResultDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("user") && data["user"] is Dictionary<string, object?> userObject)
+        if (data.ContainsKey("user") && data["user"] is JsonObject userObject)
         {
             dto.User = DocumentDTO.FromJson(userObject);
         }
 
-        if (data.ContainsKey("token") && data["token"] is string tokenValue)
+        if (data.ContainsKey("token") && data["token"].TryConvertString() is string tokenValue)
         {
             dto.Token = tokenValue;
         }

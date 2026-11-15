@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal;
 
 namespace PayloadCMS.DotNet.Query;
 
@@ -35,17 +36,18 @@ public class SelectBuilder
     /// </summary>
     /// <param name="target">The combined object being built, changed in place.</param>
     /// <param name="source">The entry to merge in.</param>
-    private static void MergeSelectClauses(Dictionary<string, object?> target, Dictionary<string, object?> source)
+    private static void MergeSelectClauses(JsonObject target, JsonObject source)
     {
         foreach (var (key, value) in source)
         {
-            if (target.ContainsKey(key) && target[key] is Dictionary<string, object?> existingNested && value is Dictionary<string, object?> sourceNested)
+            if (target.ContainsKey(key) && target[key] is JsonObject existingNested && value is JsonObject sourceNested)
             {
                 MergeSelectClauses(existingNested, sourceNested);
             }
             else
             {
-                target[key] = value;
+                // A node can belong to one tree only, so it is attached as a copy.
+                target[key] = value?.DeepClone();
             }
         }
     }
@@ -114,14 +116,14 @@ public class SelectBuilder
     /// Builds the final <c>select</c> object from all configured fields.
     /// </summary>
     /// <returns>The <c>select</c> object, or <c>null</c> if no fields were configured.</returns>
-    public Dictionary<string, object?>? Build()
+    internal JsonObject? Build()
     {
         if (_clauses.Count == 0)
         {
             return null;
         }
 
-        var result = new Dictionary<string, object?>();
+        var result = new JsonObject();
 
         foreach (var clause in _clauses)
         {

@@ -1,4 +1,6 @@
-﻿using PayloadCMS.DotNet.Internal;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal;
+using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Enums;
 
 namespace PayloadCMS.DotNet.Query;
@@ -39,13 +41,17 @@ public class WhereBuilder
     /// </summary>
     /// <param name="field">The field to filter.</param>
     /// <param name="op">The comparison operator.</param>
-    /// <param name="value">The value to compare against.</param>
+    /// <param name="value">The value to compare against: any value <c>System.Text.Json</c> can serialize, such as
+    /// a string, number, boolean, date, <see cref="Guid"/>, <c>null</c>, a dictionary, a list, or an object,
+    /// whose public properties are sent with their names as written. The value is read when this method
+    /// is called: a <c>NaN</c> or infinite number throws <see cref="ArgumentException"/>, and a value that
+    /// contains itself throws <see cref="System.Text.Json.JsonException"/>.</param>
     /// <returns>The current <see cref="WhereBuilder"/> instance.</returns>
     public WhereBuilder Field(string field, Operator op, object? value)
     {
         var clause = GetOrCreateClause(field);
         
-        clause.Set(op, value);
+        clause.Set(op, value.ToNode());
 
         return this;
     }
@@ -95,35 +101,46 @@ public class WhereBuilder
     /// Builds the final <c>where</c> object from all conditions and groups.
     /// </summary>
     /// <returns>The where object, or <c>null</c> if no conditions or groups were configured.</returns>
-    public Dictionary<string, object?>? Build()
+    internal JsonObject? Build()
     {
         if (_clauses.Count == 0 && _and.Count == 0 && _or.Count == 0)
         {
             return null;
         }
 
-        var result = new Dictionary<string, object?>();
+        var result = new JsonObject();
 
         foreach (var clause in _clauses)
         {
             foreach (var entry in clause.Build())
             {
-                result[entry.Key] = entry.Value;
+                // A node can belong to one tree only, so it is attached as a copy.
+                result[entry.Key] = entry.Value?.DeepClone();
             }
         }
 
         if (_and.Count > 0)
         {
-            result["and"] = _and
-                .Select(level => level.Build() ?? new Dictionary<string, object?>())
-                .ToList();
+            var levels = new JsonArray();
+
+            foreach (var level in _and)
+            {
+                levels.Add(level.Build() ?? new JsonObject());
+            }
+
+            result["and"] = levels;
         }
 
         if (_or.Count > 0)
         {
-            result["or"] = _or
-                .Select(level => level.Build() ?? new Dictionary<string, object?>())
-                .ToList();
+            var levels = new JsonArray();
+
+            foreach (var level in _or)
+            {
+                levels.Add(level.Build() ?? new JsonObject());
+            }
+
+            result["or"] = levels;
         }
 
         return result;

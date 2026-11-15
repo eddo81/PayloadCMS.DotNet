@@ -1,4 +1,6 @@
-﻿namespace PayloadCMS.DotNet.Query;
+﻿using System.Text.Json.Nodes;
+
+namespace PayloadCMS.DotNet.Query;
 
 /// <summary>
 /// Fluent builder for Payload CMS REST API query parameters.
@@ -17,7 +19,7 @@ public class QueryBuilder
     private readonly WhereBuilder _whereBuilder = new WhereBuilder();
     private readonly SelectBuilder _selectBuilder = new SelectBuilder();
     private readonly JoinBuilder _joinBuilder = new JoinBuilder();
-    internal readonly Dictionary<string, object?> _customParams = new();
+    internal readonly Dictionary<string, JsonNode?> _customParams = new();
 
     /// <summary>
     /// Limits the number of documents returned.
@@ -230,13 +232,13 @@ public class QueryBuilder
     /// Builds the final query parameters object from all configured fields.
     /// </summary>
     /// <returns>The query parameters, keyed by parameter name.</returns>
-    public Dictionary<string, object?> Build()
+    internal JsonObject Build()
     {
         var where = _whereBuilder.Build();
         var select = _selectBuilder.Build();
         var populate = _populateBuilder.Build();
         var joins = _joinBuilder.Build();
-        var result = new Dictionary<string, object?>();
+        var result = new JsonObject();
 
         if (_limit != null)
         {
@@ -295,7 +297,8 @@ public class QueryBuilder
 
         foreach (var customParam in _customParams)
         {
-            result[customParam.Key] = customParam.Value;
+            // A node can belong to one tree only, so it is attached as a copy.
+            result[customParam.Key] = customParam.Value?.DeepClone();
         }
 
         return result;

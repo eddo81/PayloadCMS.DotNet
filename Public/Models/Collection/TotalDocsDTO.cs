@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal.Utils;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 
 namespace PayloadCMS.DotNet.Models.Collection;
 
@@ -15,14 +16,14 @@ public sealed class TotalDocsDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS count endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static TotalDocsDTO FromJson(Dictionary<string, object?> json)
+    internal static TotalDocsDTO FromJson(JsonObject json)
     {
         var dto = new TotalDocsDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
         if (data.ContainsKey("totalDocs"))
         {
-            dto.TotalDocs = JsonParser.TryConvertInt(data["totalDocs"]) ?? dto.TotalDocs;
+            dto.TotalDocs = data["totalDocs"].TryConvertInt() ?? dto.TotalDocs;
         }
 
         return dto;
@@ -33,9 +34,9 @@ public sealed class TotalDocsDTO
     /// </summary>
     /// <param name="dto">The instance to serialize.</param>
     /// <returns>A plain JSON object for transport.</returns>
-    internal static Dictionary<string, object?> ToJson(TotalDocsDTO dto)
+    internal static JsonObject ToJson(TotalDocsDTO dto)
     {
-        return new Dictionary<string, object?>
+        return new JsonObject
         {
             ["totalDocs"] = dto.TotalDocs
         };

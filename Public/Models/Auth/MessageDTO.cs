@@ -1,4 +1,6 @@
-﻿namespace PayloadCMS.DotNet.Models.Auth;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
+namespace PayloadCMS.DotNet.Models.Auth;
 
 /// <summary>
 /// Represents a simple message response from Payload CMS.
@@ -15,12 +17,12 @@ public sealed class MessageDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static MessageDTO FromJson(Dictionary<string, object?> json)
+    internal static MessageDTO FromJson(JsonObject json)
     {
         var dto = new MessageDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("message") && data["message"] is string messageValue)
+        if (data.ContainsKey("message") && data["message"].TryConvertString() is string messageValue)
         {
             dto.Message = messageValue;
         }

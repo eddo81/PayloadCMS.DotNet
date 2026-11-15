@@ -1,4 +1,5 @@
-﻿using PayloadCMS.DotNet.Internal.Utils;
+﻿using System.Text.Json.Nodes;
+using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Models.Collection;
 
 namespace PayloadCMS.DotNet.Models.Auth;
@@ -10,8 +11,8 @@ public sealed class LoginResultDTO
 {
     /// <summary>The JWT token issued on login.</summary>
     public string Token { get; set; } = "";
-    /// <summary>The token expiration as a Unix timestamp.</summary>
-    public int Exp { get; set; } = 0;
+    /// <summary>The token expiration as a Unix timestamp, in seconds.</summary>
+    public long Exp { get; set; } = 0;
     /// <summary>The authenticated user document.</summary>
     public DocumentDTO User { get; set; } = new();
     /// <summary>The message returned by the endpoint.</summary>
@@ -22,27 +23,27 @@ public sealed class LoginResultDTO
     /// </summary>
     /// <param name="json">The raw JSON from a Payload CMS <c>login</c> endpoint.</param>
     /// <returns>A populated instance.</returns>
-    internal static LoginResultDTO FromJson(Dictionary<string, object?> json)
+    internal static LoginResultDTO FromJson(JsonObject json)
     {
         var dto = new LoginResultDTO();
-        var data = json ?? new Dictionary<string, object?>();
+        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("token") && data["token"] is string tokenValue)
+        if (data.ContainsKey("token") && data["token"].TryConvertString() is string tokenValue)
         {
             dto.Token = tokenValue;
         }
 
         if (data.ContainsKey("exp"))
         {
-            dto.Exp = JsonParser.TryConvertInt(data["exp"]) ?? dto.Exp;
+            dto.Exp = data["exp"].TryConvertLong() ?? dto.Exp;
         }
 
-        if (data.ContainsKey("user") && data["user"] is Dictionary<string, object?> userObject)
+        if (data.ContainsKey("user") && data["user"] is JsonObject userObject)
         {
             dto.User = DocumentDTO.FromJson(userObject);
         }
 
-        if (data.ContainsKey("message") && data["message"] is string messageValue)
+        if (data.ContainsKey("message") && data["message"].TryConvertString() is string messageValue)
         {
             dto.Message = messageValue;
         }

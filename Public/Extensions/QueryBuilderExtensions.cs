@@ -1,3 +1,4 @@
+using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Query;
 
 namespace PayloadCMS.DotNet.Extensions;
@@ -17,11 +18,15 @@ public static class QueryBuilderExtensions
     /// </summary>
     /// <param name="builder">The query to add the parameter to.</param>
     /// <param name="key">The parameter's name.</param>
-    /// <param name="value">The parameter's value.</param>
+    /// <param name="value">The parameter's value: any value <c>System.Text.Json</c> can serialize, such as
+    /// a string, number, boolean, date, <see cref="Guid"/>, <c>null</c>, a dictionary, a list, or an object,
+    /// whose public properties are sent with their names as written. The value is read when this method
+    /// is called: a <c>NaN</c> or infinite number throws <see cref="ArgumentException"/>, and a value that
+    /// contains itself throws <see cref="System.Text.Json.JsonException"/>.</param>
     /// <returns>The current <see cref="QueryBuilder"/> instance.</returns>
     public static QueryBuilder AddCustomParam(this QueryBuilder builder, string key, object? value)
     {
-        builder._customParams[key] = value;
+        builder._customParams[key] = value.ToNode();
 
         return builder;
     }
