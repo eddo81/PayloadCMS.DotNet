@@ -17,9 +17,8 @@ public sealed class BulkOperationDTO
     internal static BulkOperationDTO FromJson(JsonObject json)
     {
         var dto = new BulkOperationDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("docs") && data["docs"] is JsonArray docList)
+        if (json.ContainsKey("docs") && json["docs"] is JsonArray docList)
         {
             foreach (var item in docList)
             {
@@ -30,7 +29,7 @@ public sealed class BulkOperationDTO
             }
         }
 
-        if (data.ContainsKey("errors") && data["errors"] is JsonArray errorList)
+        if (json.ContainsKey("errors") && json["errors"] is JsonArray errorList)
         {
             foreach (var item in errorList)
             {

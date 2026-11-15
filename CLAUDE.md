@@ -1,11 +1,16 @@
 # Payload.CMS — C# Port
 
-Port of the TypeScript library `payload-cms-http-client` to a C# class library.
-Full design spec: `PROJECT_GUIDELINES.md` in the TS source.
+A C# class library for the Payload CMS REST API. It began as a port of the TypeScript library
+`payload-cms-http-client` and is now the canonical implementation (2026-11-14): port priority is
+C#, then Dart, then TS, and the old TS port's shape never decides a design question.
+Full design spec: `PROJECT_GUIDELINES.md` in this repo (git-ignored, like `LIBRARY.md`,
+`PORTING_GUIDE.md` and `TYPESCRIPT_BACKPORT.md`).
 
 ## TypeScript Source Location
 Local: `C:\Users\Eduardo\Desktop\payload-cms-http-client`
-Read TS source files directly with Read/Glob/Grep for parity reference — no HTTP needed.
+Read TS source files directly with Read/Glob/Grep when a backport needs them — no HTTP needed.
+The parity reference is not this port but the official `@payloadcms/sdk` 3.67.0 (`qs-esm` 7.0.2),
+vendored in the parity harness at `C:\Users\Eduardo\Desktop\payload-sdk-parity`.
 
 ## Project Setup
 - Target: .NET 8.0 only (no net6.0 — do not add it back), nullable enabled, implicit usings enabled
@@ -34,7 +39,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 ## Port Divergences
 - **HttpMethod**: TypeScript and Dart use a custom `HttpMethod` enum (no native type). C# uses `System.Net.Http.HttpMethod` (platform-native). This is a justified platform divergence — `HttpMethod` is NOT exported from the C# package.
 - **`RequestConfig`**: Public `sealed record` in `PayloadCMS.DotNet.Config`, used as the options object for `PayloadSDK.Request()`. Mirrors the official SDK's `request({ method, path, json?, args?, file? })`: `RequestConfig(Method, Path, Body?, Query?, File?)`. The public `Request(RequestConfig)` returns the raw `HttpResponseMessage` — no status check, no parsing — like the official `request()`, which returns the raw `Response` (`LIBRARY.md` item 27). The private `Request(url, method?, body?)` serves the typed methods: it throws `PayloadError` for a non-2xx and parses the body — no private wrapper record.
-- **DTO `FromJson`/`ToJson` visibility**: In TypeScript, `fromJson`/`toJson` are public static methods on each DTO class and re-exported from `index.ts`. In C#, they are `internal` — the parsed `JsonObject` tree is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
+- **DTO `FromJson` visibility**: In TypeScript, `fromJson` is a public static method on each DTO class and re-exported from `index.ts` (as is `toJson` on `DocumentDTO` and `TotalDocsDTO`, which nothing calls; C# removed its two `ToJson` methods on 2026-11-15). In C#, `FromJson` is `internal` — the parsed `JsonObject` tree is an implementation detail that consumers should never interact with directly. TypeScript has no `internal` equivalent as a first-class language feature (`@internal` JSDoc exists but requires tooling), so this divergence is not mirrored in the TS source.
 - **`PayloadError` human-readable message**: TypeScript (`Error.message`) and C# (`Exception.Message`) both surface a human-readable status-code message via inheritance. Dart's `Exception` is an interface with no `message` field — the Dart port must instead override `toString()` to return the equivalent string. Consumer-facing behaviour is identical across all three ports; only the wiring differs.
 - **`PayloadError.ServerStack`**: C# uses `ServerStack` (not `Stack`) because `Exception` has no native `Stack` property to conflict with. TypeScript uses `serverStack` (not `stack`) because `Error.stack` is already occupied by the JS call stack. Both ports use the same name — this is a coordinated cross-language choice, not a divergence.
 - **Default transport**: the official SDK takes `fetch?`, defaulting to `globalThis.fetch`. C# takes `HttpClient? httpClient = null`, defaulting to the internal `DefaultHttpClient`: one static `HttpClient` over `SocketsHttpHandler { UseCookies = false, PooledConnectionLifetime = 2 min, AutomaticDecompression = All }`. Node's `fetch` is already a shared, cookie-free transport; .NET's platform default is not, so the library builds the equivalent itself. The SDK never disposes either client. See `LIBRARY.md` item 26 and `PORTING_GUIDE.md` F13.
@@ -44,8 +49,8 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - **Descriptive variable names** — no single-character or abbreviated names (`idValue` not `id`, `longValue` not `l`)
 - **No switch expressions** — TypeScript has no equivalent; use if/else chains instead
 - **No `or` pattern syntax** — use `||` for multi-type checks to match TS structure
-- **Structural parity with TypeScript** — treat the TS files as the style authority; if a variable name exists in TS, use the same name in C#; do not invent names that have no TS equivalent
-- **DTO field access** — use `ContainsKey` + direct indexer (`data["field"]`) to mirror TypeScript's `data['field']` direct access; avoid `TryGetValue` which forces an invented `out var` name. Exception: DateTime fields where `TryParse` requires an `out` parameter — use a field-derived name (`createdAtDate`, `updatedAtDate`)
+- **Portability** — C# is canonical, so the TS files are no longer the style authority. Code must be expressible in Dart and TS without reinterpretation: no C#-only construct where a plain one does the job, and any step only one language needs is recorded in `PORTING_GUIDE.md`
+- **DTO field access** — use `ContainsKey` + direct indexer (`json["field"]`) to mirror TypeScript's `data['field']` direct access; avoid `TryGetValue` which forces an invented `out var` name. Exception: DateTime fields where `TryParse` requires an `out` parameter — use a field-derived name (`createdAtDate`, `updatedAtDate`)
 - **Comment/XML doc scope** (2026-07-30) — source comments and XML docs describe consumer-facing
   behavior only. No implementation rationale, decision history, or cross-port comparisons
   ("mirrors TS...") in the library source — that belongs in `PROJECT_GUIDELINES.md`. Same rule for
@@ -68,13 +73,13 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
   item 13.
 
 ## Key Conventions
-- `internal` for everything under `lib/internal/` (contracts, clauses, utils, upload)
-- `public` for everything under `lib/public/` (builders, client, models, config, enums)
+- Types under `Internal/` are `internal` (contracts, clauses, utils, upload)
+- Types under `Public/` are `public` (builders, client, models, config, enums); a few of their members are `internal` (`FromJson`, the builders' `Build()`, `QueryBuilder._customParams`)
 - Private fields: underscore prefix (`_field`)
 - Builders return `this` for fluent chaining
-- DTOs are **sealed classes** with `{ get; set; }` properties and defaults — matches TS mutable class + field defaults pattern. `internal static FromJson(JsonObject json)` factory colocated on each class — `internal` because the parsed JSON tree is an implementation detail, not part of the public API. Only the public `Json` properties are converted, via `data.ToDictionary()`.
-- Field reads in DTOs delegate to the `JsonNode?` extensions `TryConvertInt()`, `TryConvertLong()`, `TryConvertString()` and `TryConvertBool()` (`data["page"].TryConvertInt()`), each `null` when the value is not of that JSON kind; both number reads truncate fractions, and `TryConvertInt()` wraps whole numbers outside the `int` range. `Exp` uses `TryConvertLong()`
-- No separate options classes — use named/optional parameters directly
+- DTOs are **sealed classes** with `{ get; set; }` properties and defaults — matches TS mutable class + field defaults pattern. `internal static FromJson(JsonObject json)` factory colocated on each class — `internal` because the parsed JSON tree is an implementation detail, not part of the public API. Only the public `Json` properties are converted, via `json.ToDictionary()`.
+- Field reads in DTOs delegate to the `JsonNode?` extensions `TryConvertInt()`, `TryConvertLong()`, `TryConvertString()` and `TryConvertBool()` (`json["page"].TryConvertInt()`), each `null` when the value is not of that JSON kind; both number reads truncate fractions, and `TryConvertInt()` wraps whole numbers outside the `int` range. `Exp` uses `TryConvertLong()`
+- Method parameters are named/optional parameters, not options objects. The two options records are deliberate: `PayloadSDKConfig` (SDK-wide settings) and `RequestConfig` (the `Request()` escape hatch)
 - Inline options pattern (TS) → named parameters (C#): `Find(string slug, QueryBuilder? query = null)`
 
 ## Workflow
@@ -91,11 +96,11 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 ## Implementation Status
 
 ### Done
-- `IAuthCredential`, `IClause`, `IFileUpload` — contracts
+- `IAuthCredential`, `IFileUpload` — contracts (`IClause` removed 2026-11-15: unused as a type since `AndClause`/`OrClause` went)
 - `ApiKeyAuth`, `JwtAuth` — auth credentials
 - `Operator` — enum with StringValue (HttpMethod enum dropped — uses `System.Net.Http.HttpMethod`)
 - `StringValueAttribute`, `EnumExtensions` — enum support
-- `WhereClause` (one field's operators), `JoinClause`, `SelectClause` — internal clause strategy (`AndClause`/`OrClause` removed 2026-10-04)
+- `WhereClause` (one field's operators), `JoinClause`, `SelectClause` — internal clauses, each with a `Build()` returning `JsonObject` (`AndClause`/`OrClause` removed 2026-10-04)
 - `FormDataBuilder` — multipart form data builder
 - `QueryStringEncoder` — full recursive implementation complete
 - `JsonExtensions` (replaced `JsonParser`, 2026-11-14) — extension methods for JSON serialization (`ToJsonString`, `ToJsonContent`), deserialization (`ParseJson` → `JsonObject?`, `ToClr`, `ToDictionary`), value reads (`TryConvertInt`, `TryConvertLong`, `TryConvertString`, `TryConvertBool`), `ToNode`, plus the shared `JsonSerializerOptions` (date and `BigInteger` converters) used for every value sent, in query and body
@@ -105,7 +110,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `SelectBuilder` — public fluent field-selection builder (delegates to `SelectClause` list, deep-merges results) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `JoinBuilder` — public fluent join builder (`Disable(on)` per join field) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PopulateBuilder` — public fluent populate-mask builder (composes one `SelectBuilder` per collection slug) in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
-- `QueryBuilder` — public fluent facade over `WhereBuilder`, `SelectBuilder`, and `JoinBuilder` in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
+- `QueryBuilder` — public fluent facade over `WhereBuilder`, `SelectBuilder`, `JoinBuilder` and `PopulateBuilder` in `Public/Query/`, namespace `PayloadCMS.DotNet.Query`
 - `PayloadError` — exception class (extends Exception, has `StatusCode`, `Response`, `Body`, `ServerStack`, `Result`) in `Public/`, namespace `PayloadCMS.DotNet`
 - `RequestErrorDTO` — sealed class in `Public/Models/Errors/`, exposes `Name`, `Message`, `Field`, `Json` (base shape only; `data` block accessible via `Json` for consumer-side mapping)
 - `FileUpload` — public `IFileUpload` sealed record implementation
@@ -114,7 +119,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`; registers a scoped `PayloadSDK`, passing an optional `httpClient` through (no `IHttpClientFactory`)
 - `DefaultHttpClient` — internal static shared client used when no `httpClient` is passed, in `Internal/Utils/`
 - `QueryBuilderExtensions` — `AddCustomParam`, `Draft`, `Trash`, `Autosave` in `Public/Extensions/`, namespace `PayloadCMS.DotNet.Extensions` (opt-in import, deliberately not members of `QueryBuilder` itself — see CLAUDE.md's "Extensibility" backlog closure and `PROJECT_GUIDELINES.md` §5.8)
-- xUnit v3 test suite — 300 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `PayloadError`, `PayloadSDK`, plus `QueryInvariantTests` and `ResponseInvariantTests`
+- xUnit v3 test suite — 306 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `FileUpload`, `PayloadError`, `PayloadSDK`, plus `QueryInvariantTests` and `ResponseInvariantTests`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -165,6 +170,10 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 
 
 ## Parity Audit Action Plan (2026-07-06)
+
+> Dated record: the nine numbered items below are all done. `@shopnex/payload-sdk` is the package
+> name this audit used at the time; the reference the parity harness measures against is the
+> official `@payloadcms/sdk` 3.67.0.
 
 Findings from the audit against `@shopnex/payload-sdk` (the official Payload TS SDK) and this
 project's own design docs. Ordered by importance. Items marked **shared** exist identically in the

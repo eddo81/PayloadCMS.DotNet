@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Nodes;
-using PayloadCMS.DotNet.Internal.Contracts;
 
 namespace PayloadCMS.DotNet.Internal;
 
@@ -9,7 +8,7 @@ namespace PayloadCMS.DotNet.Internal;
 /// <c>limit</c>, <c>page</c>, <c>sort</c>, <c>count</c> and <c>where</c> per join target, or to
 /// switch that target off entirely.</para>
 /// </summary>
-internal class JoinClause : IClause
+internal class JoinClause
 {
     /// <summary>The <c>Join Field</c> name this clause targets.</summary>
     public readonly string On;

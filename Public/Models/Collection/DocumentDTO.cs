@@ -30,54 +30,29 @@ public sealed class DocumentDTO
     internal static DocumentDTO FromJson(JsonObject json)
     {
         var dto = new DocumentDTO();
-        var data = json ?? new JsonObject();
 
-        dto.Json = data.ToDictionary();
+        dto.Json = json.ToDictionary();
 
-        if (data.ContainsKey("id") && data["id"].TryConvertString() is string idValue)
+        if (json.ContainsKey("id") && json["id"].TryConvertString() is string idValue)
         {
             dto.Id = idValue;
         }
-        else if (data.ContainsKey("id") && data["id"]?.GetValueKind() == JsonValueKind.Number)
+        else if (json.ContainsKey("id") && json["id"]?.GetValueKind() == JsonValueKind.Number)
         {
             // Postgres/SQLite adapters return numeric ids — normalize to string.
-            dto.Id = Convert.ToString(data["id"].ToClr(), CultureInfo.InvariantCulture)!;
+            dto.Id = Convert.ToString(json["id"].ToClr(), CultureInfo.InvariantCulture)!;
         }
 
-        if (data.ContainsKey("createdAt") && data["createdAt"].TryConvertString() is string createdAtString && createdAtString != "" && DateTime.TryParse(createdAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime createdAtDate))
+        if (json.ContainsKey("createdAt") && json["createdAt"].TryConvertString() is string createdAtString && createdAtString != "" && DateTime.TryParse(createdAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime createdAtDate))
         {
             dto.CreatedAt = createdAtDate;
         }
 
-        if (data.ContainsKey("updatedAt") && data["updatedAt"].TryConvertString() is string updatedAtString && updatedAtString != "" && DateTime.TryParse(updatedAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime updatedAtDate))
+        if (json.ContainsKey("updatedAt") && json["updatedAt"].TryConvertString() is string updatedAtString && updatedAtString != "" && DateTime.TryParse(updatedAtString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime updatedAtDate))
         {
             dto.UpdatedAt = updatedAtDate;
         }
 
         return dto;
-    }
-
-    /// <summary>
-    /// Maps a <see cref="DocumentDTO"/> into a plain JSON object.
-    /// </summary>
-    /// <param name="dto">The instance to serialize.</param>
-    /// <returns>A plain JSON object for transport.</returns>
-    internal static JsonObject ToJson(DocumentDTO dto)
-    {
-        var result = dto.Json.ToNode()!.AsObject();
-
-        result["id"] = dto.Id;
-
-        if (dto.CreatedAt.HasValue)
-        {
-            result["createdAt"] = dto.CreatedAt.Value.ToString("O");
-        }
-
-        if (dto.UpdatedAt.HasValue)
-        {
-            result["updatedAt"] = dto.UpdatedAt.Value.ToString("O");
-        }
-
-        return result;
     }
 }

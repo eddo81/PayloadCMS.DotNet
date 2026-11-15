@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Nodes;
-using PayloadCMS.DotNet.Internal.Contracts;
 using PayloadCMS.DotNet.Internal.Utils;
 using PayloadCMS.DotNet.Enums;
 
@@ -8,7 +7,7 @@ namespace PayloadCMS.DotNet.Internal;
 /// <summary>
 /// The operators applied to one field of a <c>where</c> level.
 /// </summary>
-internal class WhereClause : IClause
+internal class WhereClause
 {
     /// <summary>The field the operators apply to.</summary>
     public readonly string Field;

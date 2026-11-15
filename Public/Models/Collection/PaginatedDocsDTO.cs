@@ -35,9 +35,8 @@ public sealed class PaginatedDocsDTO
     internal static PaginatedDocsDTO FromJson(JsonObject json)
     {
         var dto = new PaginatedDocsDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("docs") && data["docs"] is JsonArray docList)
+        if (json.ContainsKey("docs") && json["docs"] is JsonArray docList)
         {
             foreach (var item in docList)
             {
@@ -48,44 +47,44 @@ public sealed class PaginatedDocsDTO
             }
         }
 
-        if (data.ContainsKey("hasNextPage") && data["hasNextPage"].TryConvertBool() is bool hasNextPageValue)
+        if (json.ContainsKey("hasNextPage") && json["hasNextPage"].TryConvertBool() is bool hasNextPageValue)
         {
             dto.HasNextPage = hasNextPageValue;
         }
 
-        if (data.ContainsKey("hasPrevPage") && data["hasPrevPage"].TryConvertBool() is bool hasPrevPageValue)
+        if (json.ContainsKey("hasPrevPage") && json["hasPrevPage"].TryConvertBool() is bool hasPrevPageValue)
         {
             dto.HasPrevPage = hasPrevPageValue;
         }
 
-        if (data.ContainsKey("limit"))
+        if (json.ContainsKey("limit"))
         {
-            dto.Limit = data["limit"].TryConvertInt() ?? dto.Limit;
+            dto.Limit = json["limit"].TryConvertInt() ?? dto.Limit;
         }
 
-        if (data.ContainsKey("totalDocs"))
+        if (json.ContainsKey("totalDocs"))
         {
-            dto.TotalDocs = data["totalDocs"].TryConvertInt() ?? dto.TotalDocs;
+            dto.TotalDocs = json["totalDocs"].TryConvertInt() ?? dto.TotalDocs;
         }
 
-        if (data.ContainsKey("totalPages"))
+        if (json.ContainsKey("totalPages"))
         {
-            dto.TotalPages = data["totalPages"].TryConvertInt() ?? dto.TotalPages;
+            dto.TotalPages = json["totalPages"].TryConvertInt() ?? dto.TotalPages;
         }
 
-        if (data.ContainsKey("page"))
+        if (json.ContainsKey("page"))
         {
-            dto.Page = data["page"].TryConvertInt();
+            dto.Page = json["page"].TryConvertInt();
         }
 
-        if (data.ContainsKey("nextPage"))
+        if (json.ContainsKey("nextPage"))
         {
-            dto.NextPage = data["nextPage"].TryConvertInt();
+            dto.NextPage = json["nextPage"].TryConvertInt();
         }
 
-        if (data.ContainsKey("prevPage"))
+        if (json.ContainsKey("prevPage"))
         {
-            dto.PrevPage = data["prevPage"].TryConvertInt();
+            dto.PrevPage = json["prevPage"].TryConvertInt();
         }
 
         return dto;

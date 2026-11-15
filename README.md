@@ -1344,6 +1344,8 @@ the same field are combined; if the same operator is set twice on a field, the l
 
 > **Dates:** `DateTime` and `DateTimeOffset` serialize as UTC ISO 8601 timestamps with millisecond precision (`2026-03-01T12:30:45.000Z`); `DateOnly` as a plain date (`2026-03-01`). A `DateTime` with `Kind.Local` is converted to UTC; with no `Kind`, it is treated as UTC.
 
+> **Empty lists:** an empty list sends no condition. `Operator.In` with an empty list therefore returns every document, not none. Check the list before querying.
+
 ```csharp
 using PayloadCMS.DotNet.Enums;
 using PayloadCMS.DotNet.Query;

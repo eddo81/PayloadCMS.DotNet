@@ -7,7 +7,7 @@ namespace PayloadCMS.DotNet.Internal.Utils;
 /// Serializes nested objects into Payload CMS query strings.
 /// <para>Preserves Payload's bracketed syntax (e.g. <c>where[title][equals]=foo</c>)
 /// while URL-encoding values. Square brackets <c>[]</c> and commas <c>,</c> are
-/// left unescaped by default as they carry semantic meaning.</para>
+/// percent-encoded with strict encoding, and left literal without it.</para>
 /// </summary>
 internal class QueryStringEncoder
 {
@@ -62,7 +62,7 @@ internal class QueryStringEncoder
 
     /// <summary>
     /// Encodes a string for safe query string inclusion.
-    /// <para>Preserves <c>[]</c> and <c>,</c> which carry semantic meaning in Payload CMS query syntax.</para>
+    /// <para>Without strict encoding, <c>[</c>, <c>]</c> and <c>,</c> are left literal.</para>
     /// </summary>
     /// <param name="value">The string to encode.</param>
     /// <returns>The encoded string.</returns>

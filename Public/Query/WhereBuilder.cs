@@ -41,11 +41,9 @@ public class WhereBuilder
     /// </summary>
     /// <param name="field">The field to filter.</param>
     /// <param name="op">The comparison operator.</param>
-    /// <param name="value">The value to compare against: any value <c>System.Text.Json</c> can serialize, such as
-    /// a string, number, boolean, date, <see cref="Guid"/>, <c>null</c>, a dictionary, a list, or an object,
-    /// whose public properties are sent with their names as written. The value is read when this method
-    /// is called: a <c>NaN</c> or infinite number throws <see cref="ArgumentException"/>, and a value that
-    /// contains itself throws <see cref="System.Text.Json.JsonException"/>.</param>
+    /// <param name="value">The value to compare against: a string, number, boolean, date, list or object.
+    /// Throws if the value can't be sent as JSON, such as <c>NaN</c> or an object that references itself.
+    /// Later changes to the value are ignored.</param>
     /// <returns>The current <see cref="WhereBuilder"/> instance.</returns>
     public WhereBuilder Field(string field, Operator op, object? value)
     {

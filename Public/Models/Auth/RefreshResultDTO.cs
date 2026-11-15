@@ -24,19 +24,18 @@ public sealed class RefreshResultDTO
     internal static RefreshResultDTO FromJson(JsonObject json)
     {
         var dto = new RefreshResultDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("refreshedToken") && data["refreshedToken"].TryConvertString() is string refreshedTokenValue)
+        if (json.ContainsKey("refreshedToken") && json["refreshedToken"].TryConvertString() is string refreshedTokenValue)
         {
             dto.RefreshedToken = refreshedTokenValue;
         }
 
-        if (data.ContainsKey("exp"))
+        if (json.ContainsKey("exp"))
         {
-            dto.Exp = data["exp"].TryConvertLong() ?? dto.Exp;
+            dto.Exp = json["exp"].TryConvertLong() ?? dto.Exp;
         }
 
-        if (data.ContainsKey("user") && data["user"] is JsonObject userObject)
+        if (json.ContainsKey("user") && json["user"] is JsonObject userObject)
         {
             dto.User = DocumentDTO.FromJson(userObject);
         }

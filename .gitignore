@@ -42,3 +42,4 @@ PROJECT_GUIDELINES.md
 PORTING_GUIDE.md
 .mcp.json
 *.lscache
+.claude/settings.local.json

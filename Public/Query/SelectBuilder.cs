@@ -62,6 +62,11 @@ public class SelectBuilder
     /// <returns>The current <see cref="SelectBuilder"/> instance.</returns>
     public SelectBuilder Select(string[] fields)
     {
+        if (fields == null)
+        {
+            return this;
+        }
+
         foreach (var field in fields)
         {
             if (string.IsNullOrEmpty(field))
@@ -92,6 +97,11 @@ public class SelectBuilder
     /// <returns>The current <see cref="SelectBuilder"/> instance.</returns>
     public SelectBuilder Exclude(string[] fields)
     {
+        if (fields == null)
+        {
+            return this;
+        }
+
         foreach (var field in fields)
         {
             if (string.IsNullOrEmpty(field))

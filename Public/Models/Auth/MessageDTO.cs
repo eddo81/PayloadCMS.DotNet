@@ -20,9 +20,8 @@ public sealed class MessageDTO
     internal static MessageDTO FromJson(JsonObject json)
     {
         var dto = new MessageDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("message") && data["message"].TryConvertString() is string messageValue)
+        if (json.ContainsKey("message") && json["message"].TryConvertString() is string messageValue)
         {
             dto.Message = messageValue;
         }

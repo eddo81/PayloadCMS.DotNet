@@ -10,7 +10,7 @@ namespace PayloadCMS.DotNet.Internal.Upload;
 /// Payload CMS expects <c>file</c> (Blob) and <c>_payload</c>
 /// (JSON string) fields.
 /// </summary>
-internal class FormDataBuilder
+internal static class FormDataBuilder
 {
     public static MultipartFormDataContent Build(IFileUpload file, Dictionary<string, object?> data)
     {

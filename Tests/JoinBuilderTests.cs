@@ -356,4 +356,28 @@ public class JoinBuilderTests
 
         Assert.Equal(expected, actual);
     }
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public void JoinBuilderWhereWithNoJoinFieldShouldProduceNoOutput(string? on)
+    {
+        var params_ = new QueryBuilder()
+            .Join(joinBuilder => joinBuilder.Where(on!, where => where.Field("status", Operator.Equals, "published")))
+            .Build();
+
+        Assert.Equal("", _encoder.Stringify(params_));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public void JoinBuilderWhereWithNoJoinFieldShouldNotRunTheCallback(string? on)
+    {
+        var callbackRan = false;
+
+        new QueryBuilder()
+            .Join(joinBuilder => joinBuilder.Where(on!, where => { callbackRan = true; }));
+
+        Assert.False(callbackRan);
+    }
 }

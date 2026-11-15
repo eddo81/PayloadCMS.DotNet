@@ -22,14 +22,13 @@ public sealed class ResetPasswordResultDTO
     internal static ResetPasswordResultDTO FromJson(JsonObject json)
     {
         var dto = new ResetPasswordResultDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("user") && data["user"] is JsonObject userObject)
+        if (json.ContainsKey("user") && json["user"] is JsonObject userObject)
         {
             dto.User = DocumentDTO.FromJson(userObject);
         }
 
-        if (data.ContainsKey("token") && data["token"].TryConvertString() is string tokenValue)
+        if (json.ContainsKey("token") && json["token"].TryConvertString() is string tokenValue)
         {
             dto.Token = tokenValue;
         }

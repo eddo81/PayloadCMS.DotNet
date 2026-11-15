@@ -3,7 +3,7 @@
 namespace PayloadCMS.DotNet.Config;
 
 /// <summary>
-/// <see cref="IAuthCredential"/> for Payload CMS <c>API Key</c> authentication.
+/// Authenticates with a Payload CMS API key.
 /// <para>Sets the <c>Authorization</c> header to:
 /// <c>{collectionSlug} API-Key {apiKey}</c></para>
 /// </summary>

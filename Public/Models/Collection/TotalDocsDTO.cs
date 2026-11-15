@@ -19,26 +19,12 @@ public sealed class TotalDocsDTO
     internal static TotalDocsDTO FromJson(JsonObject json)
     {
         var dto = new TotalDocsDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("totalDocs"))
+        if (json.ContainsKey("totalDocs"))
         {
-            dto.TotalDocs = data["totalDocs"].TryConvertInt() ?? dto.TotalDocs;
+            dto.TotalDocs = json["totalDocs"].TryConvertInt() ?? dto.TotalDocs;
         }
 
         return dto;
-    }
-
-    /// <summary>
-    /// Maps a <see cref="TotalDocsDTO"/> into a plain JSON object.
-    /// </summary>
-    /// <param name="dto">The instance to serialize.</param>
-    /// <returns>A plain JSON object for transport.</returns>
-    internal static JsonObject ToJson(TotalDocsDTO dto)
-    {
-        return new JsonObject
-        {
-            ["totalDocs"] = dto.TotalDocs
-        };
     }
 }

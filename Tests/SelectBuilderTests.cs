@@ -206,4 +206,44 @@ public class SelectBuilderTests
 
         Assert.Equal("limit=0", actual);
     }
+    [Fact]
+    public void SelectWithNullArrayShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Select(null!)
+            .Build();
+
+        Assert.Equal("", _encoder.Stringify(params_));
+    }
+
+    [Fact]
+    public void ExcludeWithNullArrayShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Exclude(null!)
+            .Build();
+
+        Assert.Equal("", _encoder.Stringify(params_));
+    }
+
+    [Fact]
+    public void PopulateWithNullArrayShouldProduceNoOutput()
+    {
+        var params_ = new QueryBuilder()
+            .Populate("users", null!)
+            .Build();
+
+        Assert.Equal("", _encoder.Stringify(params_));
+    }
+
+    [Fact]
+    public void SelectWithNullArrayShouldKeepFieldsFromOtherCalls()
+    {
+        var params_ = new QueryBuilder()
+            .Select(new[] { "title" })
+            .Select(null!)
+            .Build();
+
+        Assert.Equal("select[title]=true", _encoder.Stringify(params_));
+    }
 }

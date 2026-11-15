@@ -3,7 +3,7 @@
 namespace PayloadCMS.DotNet.Config;
 
 /// <summary>
-/// <see cref="IAuthCredential"/> for Payload CMS <c>JWT</c> authentication.
+/// Authenticates with a Payload CMS JWT.
 /// <para>Sets the <c>Authorization</c> header to: <c>Bearer {token}</c></para>
 /// </summary>
 /// <seealso href="https://payloadcms.com/docs/authentication/token-data"/>

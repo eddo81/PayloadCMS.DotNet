@@ -28,29 +28,28 @@ public sealed class MeResultDTO
     internal static MeResultDTO FromJson(JsonObject json)
     {
         var dto = new MeResultDTO();
-        var data = json ?? new JsonObject();
 
-        if (data.ContainsKey("user") && data["user"] is JsonObject userObject)
+        if (json.ContainsKey("user") && json["user"] is JsonObject userObject)
         {
             dto.User = DocumentDTO.FromJson(userObject);
         }
 
-        if (data.ContainsKey("token") && data["token"].TryConvertString() is string tokenValue)
+        if (json.ContainsKey("token") && json["token"].TryConvertString() is string tokenValue)
         {
             dto.Token = tokenValue;
         }
 
-        if (data.ContainsKey("exp"))
+        if (json.ContainsKey("exp"))
         {
-            dto.Exp = data["exp"].TryConvertLong() ?? dto.Exp;
+            dto.Exp = json["exp"].TryConvertLong() ?? dto.Exp;
         }
 
-        if (data.ContainsKey("collection") && data["collection"].TryConvertString() is string collectionValue)
+        if (json.ContainsKey("collection") && json["collection"].TryConvertString() is string collectionValue)
         {
             dto.Collection = collectionValue;
         }
 
-        if (data.ContainsKey("strategy") && data["strategy"].TryConvertString() is string strategyValue)
+        if (json.ContainsKey("strategy") && json["strategy"].TryConvertString() is string strategyValue)
         {
             dto.Strategy = strategyValue;
         }

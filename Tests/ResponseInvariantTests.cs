@@ -401,27 +401,6 @@ public class ResponseInvariantTests
         Assert.Null(error.ServerStack);
     }
 
-    // ── ToJson ──────────────────────────────────────────────────
-
-    [Fact]
-    public async Task DocumentToJson_WritesJsonWithTheMappedFieldsOnTop()
-    {
-        var doc = await FindByIdWith("""{ "id": 7, "title": "T", "tags": ["a", null], "createdAt": "x" }""");
-        doc.CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        var written = System.Text.Json.JsonSerializer.Serialize(DocumentDTO.ToJson(doc));
-
-        Assert.Equal("""{"id":"7","title":"T","tags":["a",null],"createdAt":"2024-01-01T00:00:00.0000000Z"}""", written);
-    }
-
-    [Fact]
-    public void TotalDocsToJson_WritesTotalDocs()
-    {
-        var written = System.Text.Json.JsonSerializer.Serialize(TotalDocsDTO.ToJson(new TotalDocsDTO { TotalDocs = 4 }));
-
-        Assert.Equal("""{"totalDocs":4}""", written);
-    }
-
     // ── Auth DTOs ───────────────────────────────────────────────
 
     [Fact]

@@ -160,14 +160,14 @@ public class JoinBuilder
     /// <returns>The current <see cref="JoinBuilder"/> instance.</returns>
     public JoinBuilder Where(string on, Action<WhereBuilder> callback)
     {
-        var builder = GetOrCreateWhereBuilder(on);
-
-        callback(builder);
-
         var clause = GetOrCreateClause(on);
 
         if (clause != null)
         {
+            var builder = GetOrCreateWhereBuilder(on);
+
+            callback(builder);
+
             clause.Where = builder.Build();
         }
 

@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using PayloadCMS.DotNet.Internal.Contracts;
 
 namespace PayloadCMS.DotNet.Internal;
 
@@ -8,7 +7,7 @@ namespace PayloadCMS.DotNet.Internal;
 /// targeting either inclusion (<c>true</c>) or exclusion (<c>false</c>).
 /// <para>Used internally by <see cref="PayloadCMS.DotNet.Query.SelectBuilder"/>.</para>
 /// </summary>
-internal class SelectClause : IClause
+internal class SelectClause
 {
     private readonly string[] _segments;
     private readonly bool _value;
