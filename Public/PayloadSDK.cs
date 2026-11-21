@@ -123,13 +123,15 @@ public class PayloadSDK
     }
 
     /// <summary>
-    /// Sends a request to any path on the Payload CMS instance and returns the response as received.
+    /// Sends a request to any path on the Payload CMS instance and returns the response.
     /// <para>An escape hatch for custom endpoints. Sends the custom headers and the credential like every
-    /// other method, but does not check the status or read the body: both are left to the caller.</para>
+    /// other method. A non-2xx response throws <see cref="PayloadError"/>, like every other method; a
+    /// successful response is returned unread, so its body is left to the caller.</para>
     /// </summary>
     /// <param name="config">The request options: method, path, and optional body, query and file.</param>
     /// <param name="cancellationToken">An optional token to cancel the request.</param>
-    /// <returns>The HTTP response, whatever its status.</returns>
+    /// <returns>The successful HTTP response.</returns>
+    /// <exception cref="PayloadError">On non-2xx responses.</exception>
     public async Task<HttpResponseMessage> Request(RequestConfig config, CancellationToken cancellationToken = default)
     {
         var url = AppendQueryString($"{_baseUrl}{config.Path}", config.Query);
@@ -162,7 +164,20 @@ public class PayloadSDK
             request.Content = config.File != null ? FormDataBuilder.Build(config.File, data) : data.ToJsonContent();
         }
 
-        return await _httpClient.SendAsync(request, cancellationToken);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var text = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            throw new PayloadError(
+                statusCode: (int)response.StatusCode,
+                response: response,
+                body: text.Length > 0 ? text : null
+            );
+        }
+
+        return response;
     }
 
     /// <summary>

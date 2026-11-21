@@ -891,10 +891,10 @@ DocumentDTO document = await sdk.RestoreGlobalVersion("site-settings", "version-
 
 The SDK provides dedicated methods for the standard Payload CMS REST API, but custom endpoints can be added. `Request()` provides an escape hatch for calling those endpoints without requiring a dedicated SDK method.
 
-The request is configured through `RequestConfig`, which lets you specify the HTTP method, path, optional request body, query parameters and file. The response is returned as received: the SDK does not check its status code or read its body, so a non-2xx response does not throw `PayloadError`.
+The request is configured through `RequestConfig`, which lets you specify the HTTP method, path, optional request body, query parameters and file. A non-2xx response throws `PayloadError`, like every other method. A successful response is returned unread.
 
 ### Request
-Sends a request to a custom endpoint and returns the response as received.
+Sends a request to a custom endpoint and returns the response.
 
 ```csharp
 Task<HttpResponseMessage> Request(RequestConfig config, CancellationToken cancellationToken = default)
@@ -916,8 +916,6 @@ var requestConfig = new RequestConfig(
 );
 
 using HttpResponseMessage response = await sdk.Request(requestConfig);
-
-response.EnsureSuccessStatusCode();
 
 string body = await response.Content.ReadAsStringAsync();
 ```
@@ -1624,7 +1622,7 @@ See [Error Handling](#error-handling) for usage examples.
 
 ## Error Handling
 
-`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code. The one exception is a bulk `Update()` or `Delete()` that partly succeeded — see [Update](#update). `Request()` never throws `PayloadError`: it returns the response as received — see [Custom Endpoints](#custom-endpoints).
+`PayloadError` is thrown when a Payload CMS REST API request fails with a non-2xx status code. The one exception is a bulk `Update()` or `Delete()` that partly succeeded — see [Update](#update).
 
 Other failures surface as .NET's own exceptions: `OperationCanceledException` when the request is cancelled or the client's timeout elapses, `HttpRequestException` when the server cannot be reached, and `System.Text.Json.JsonException` when a successful response body is not a JSON object. An invalid query value throws as soon as it is passed to `Field()` or `AddCustomParam()` (see [Field](#field)).
 

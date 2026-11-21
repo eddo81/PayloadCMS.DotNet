@@ -937,14 +937,55 @@ public class PayloadSDKTests
     }
 
     [Fact]
-    public async Task Request_NonSuccessStatus_ReturnsResponseWithoutThrowing()
+    public async Task Request_NonSuccessStatus_ThrowsPayloadError()
     {
         const string json = """{ "errors": [{ "message": "Not Found" }] }""";
         var (sdk, _) = SdkFactory.Create(HttpStatusCode.NotFound, json);
 
-        var response = await sdk.Request(new RequestConfig(HttpMethod.Get, "/api/missing"));
+        var exception = await Assert.ThrowsAsync<PayloadError>(
+            () => sdk.Request(new RequestConfig(HttpMethod.Get, "/api/missing")));
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(404, exception.StatusCode);
+        Assert.Equal(json, exception.Body);
+        Assert.Equal("Not Found", Assert.Single(exception.Result).Message);
+        Assert.Equal(HttpStatusCode.NotFound, exception.Response!.StatusCode);
+    }
+
+    [Fact]
+    public async Task Request_NonSuccessStatusWithNonJsonBody_ThrowsPayloadError()
+    {
+        const string html = "<html><body>404</body></html>";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.NotFound, html);
+
+        var exception = await Assert.ThrowsAsync<PayloadError>(
+            () => sdk.Request(new RequestConfig(HttpMethod.Get, "/no-such-route")));
+
+        Assert.Equal(404, exception.StatusCode);
+        Assert.Equal(html, exception.Body);
+        Assert.Empty(exception.Result);
+    }
+
+    [Fact]
+    public async Task Request_NonSuccessStatus_LeavesTheBodyReadableOnTheResponse()
+    {
+        const string json = """{ "errors": [{ "message": "Forbidden" }] }""";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.Forbidden, json);
+
+        var exception = await Assert.ThrowsAsync<PayloadError>(
+            () => sdk.Request(new RequestConfig(HttpMethod.Get, "/api/posts")));
+
+        Assert.Equal(json, await exception.Response!.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Request_SuccessStatus_ReturnsTheResponseUnread()
+    {
+        const string json = """{ "doc": {} }""";
+        var (sdk, _) = SdkFactory.Create(HttpStatusCode.Created, json);
+
+        var response = await sdk.Request(new RequestConfig(HttpMethod.Post, "/api/posts", new Dictionary<string, object?>()));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(json, await response.Content.ReadAsStringAsync());
     }
 
