@@ -6,7 +6,7 @@ namespace Payload.CMS.Tests;
 
 public class QueryBuilderTests
 {
-    private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false);
+    private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false, strictEncoding: false);
 
     [Fact]
     public void SortAndSortByDescendingShouldSerializeAsCommaSeparatedList()
@@ -492,6 +492,33 @@ public class QueryBuilderTests
             "where[and][0][views][greater_than]=10",
             "where[or][0][title][equals]=foo"
         });
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void EmptyInListShouldBeSent()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => where.Field("title", Operator.In, new List<object?>()))
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+
+        Assert.Equal("where[title][in][]", actual);
+    }
+
+    [Fact]
+    public void EmptyInListInsideOrShouldKeepItsElement()
+    {
+        var params_ = new QueryBuilder()
+            .Where(where => where
+                .Or(first => first.Field("title", Operator.In, new List<object?>()))
+                .Or(second => second.Field("views", Operator.Equals, 1)))
+            .Build();
+
+        var actual = _encoder.Stringify(params_);
+        var expected = "where[or][0][title][in][]&where[or][1][views][equals]=1";
 
         Assert.Equal(expected, actual);
     }

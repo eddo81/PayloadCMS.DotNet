@@ -4,7 +4,7 @@ namespace Payload.CMS.Tests;
 
 public class SelectBuilderTests
 {
-    private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false);
+    private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false, strictEncoding: false);
 
     [Fact]
     public void SelectShouldSerializeAsBracketNotation()

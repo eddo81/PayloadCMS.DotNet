@@ -22,11 +22,11 @@ internal class QueryStringEncoder
     /// Creates a new <see cref="QueryStringEncoder"/>.
     /// </summary>
     /// <param name="addQueryPrefix">Prefix output with <c>?</c>. Defaults to <c>true</c>.</param>
-    /// <param name="strictEncoding">Percent-encode brackets and commas. Defaults to <c>false</c>, which leaves [, ] and , literal.</param>
+    /// <param name="strictEncoding">Percent-encode brackets and commas. Defaults to <c>true</c>; <c>false</c> leaves [, ] and , literal.</param>
     public QueryStringEncoder(bool? addQueryPrefix = null, bool? strictEncoding = null)
     {
         _addQueryPrefix = addQueryPrefix ?? true;
-        _strictEncoding = strictEncoding ?? false;
+        _strictEncoding = strictEncoding ?? true;
     }
 
     /// <summary>
@@ -137,12 +137,19 @@ internal class QueryStringEncoder
 
     /// <summary>
     /// Serializes an array using index-based notation.
+    /// <para>An empty array is written as its key followed by <c>[]</c>, with no value.</para>
     /// </summary>
     /// <param name="arr">The array to serialize.</param>
     /// <param name="parentKey">The current key path (e.g. <c>where[tags]</c>).</param>
     /// <param name="segments">The accumulated query segments to append to.</param>
     private void SerializeArray(JsonArray arr, string parentKey, List<string> segments)
     {
+        if (arr.Count == 0)
+        {
+            segments.Add(Bracket(parentKey, ""));
+            return;
+        }
+
         for (int i = 0; i < arr.Count; i++)
         {
             var value = arr[i];

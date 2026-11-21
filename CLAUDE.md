@@ -9,8 +9,10 @@ Full design spec: `PROJECT_GUIDELINES.md` in this repo (git-ignored, like `LIBRA
 ## TypeScript Source Location
 Local: `C:\Users\Eduardo\Desktop\payload-cms-http-client`
 Read TS source files directly with Read/Glob/Grep when a backport needs them — no HTTP needed.
-The parity reference is not this port but the official `@payloadcms/sdk` 3.67.0 (`qs-esm` 7.0.2),
-vendored in the parity harness at `C:\Users\Eduardo\Desktop\payload-sdk-parity`.
+The parity reference is not this port but the official `@payloadcms/sdk` 3.93.0 (`qs-esm` 8.0.1,
+since 2026-11-19; 3.67.0 / 7.0.2 before), vendored in the parity harness at
+`C:\Users\Eduardo\Desktop\payload-sdk-parity`. The harness CMS runs Payload 3.93.0 too (Next 15.4.11),
+since 2026-11-19 (`LIBRARY.md` item 37).
 
 ## Project Setup
 - Target: .NET 8.0 only (no net6.0 — do not add it back), nullable enabled, implicit usings enabled
@@ -119,7 +121,7 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `ServiceCollectionExtensions.AddPayloadSDK()` — ASP.NET Core DI extension in `PayloadCMS.DotNet.Extensions`; registers a scoped `PayloadSDK`, passing an optional `httpClient` through (no `IHttpClientFactory`)
 - `DefaultHttpClient` — internal static shared client used when no `httpClient` is passed, in `Internal/Utils/`
 - `QueryBuilderExtensions` — `AddCustomParam`, `Draft`, `Trash`, `Autosave` in `Public/Extensions/`, namespace `PayloadCMS.DotNet.Extensions` (opt-in import, deliberately not members of `QueryBuilder` itself — see CLAUDE.md's "Extensibility" backlog closure and `PROJECT_GUIDELINES.md` §5.8)
-- xUnit v3 test suite — 306 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `FileUpload`, `PayloadError`, `PayloadSDK`, plus `QueryInvariantTests` and `ResponseInvariantTests`
+- xUnit v3 test suite — 313 tests across `QueryStringEncoder`, `QueryBuilder`, `SelectBuilder`, `JoinBuilder`, `ApiKeyAuth`, `FileUpload`, `PayloadError`, `PayloadSDK`, plus `QueryInvariantTests` and `ResponseInvariantTests`
 
 ### PayloadSDK Notes
 - Namespace: `PayloadCMS.DotNet`; class named `PayloadSDK`
@@ -149,9 +151,11 @@ Enums use `[StringValue("...")]` attribute + `EnumExtensions.ToStringValue()` ex
 - `select`: bracket-object notation `select[title]=true&select[author]=true` (NOT comma-separated)
 - `sort`: comma-separated (NOT indexed) `sort=a,-b`
 - `null` values: kept, rendered as an empty value `key=` (`LIBRARY.md` item 14 — dropping them removed filters)
+- Empty arrays: written as the key plus `[]`, no value (`where[title][in][]`), at any depth, escaped like every
+  other key; empty objects emit nothing (`LIBRARY.md` item 38, preview.34 — matches the reference since 3.86.0)
 - `bool`: serialized as `"true"` / `"false"` strings
 - `DateTime`: ISO 8601 UTC, millisecond precision, always `Z` (`DateSerializer`, item 20)
-- Escaping follows `PayloadSDKConfig.StrictEncoding`, **default `true`**: `[`, `]`, `,` are percent-encoded (`%5B`, `%5D`, `%2C`). With `StrictEncoding = false` they are left literal after `Uri.EscapeDataString()`. (`QueryStringEncoder`'s own constructor defaults to non-strict, but the SDK always passes the config value.)
+- Escaping follows `PayloadSDKConfig.StrictEncoding`, **default `true`**: `[`, `]`, `,` are percent-encoded (`%5B`, `%5D`, `%2C`). With `StrictEncoding = false` they are left literal after `Uri.EscapeDataString()`. (`QueryStringEncoder`'s own constructor defaults to strict too, since 2026-11-17; the SDK always passes the config value.)
 - `?` prefix added when there are parameters (`_addQueryPrefix`, defaults `true`); no parameters gives an empty string
 
 ## JoinBuilder Notes

@@ -7,7 +7,7 @@ namespace Payload.CMS.Tests;
 public class QueryStringEncoderTests
 {
     // addQueryPrefix: false mirrors the TS test setup
-    private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false);
+    private readonly QueryStringEncoder _encoder = new(addQueryPrefix: false, strictEncoding: false);
 
     // The expectations in the strict-encoding tests below are the literal output of `qs-esm` 7.0.2
     // — the package Payload itself recommends — captured by running `stringify` on the same input.
@@ -393,6 +393,91 @@ public class QueryStringEncoderTests
         // A comma that arrived in the data rather than one the encoder generated.
         Assert.Equal("sort=a%2C-b", _strictEncoder.Stringify(Tree(obj)));
         Assert.Equal("sort=a,-b", _encoder.Stringify(Tree(obj)));
+    }
+
+    [Fact]
+    public void ShouldWriteAnEmptyArrayAsItsKeyWithEmptyBrackets()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["title"] = new Dictionary<string, object?> { ["in"] = new List<object?>() }
+            }
+        };
+
+        Assert.Equal("where[title][in][]", _encoder.Stringify(Tree(obj)));
+        Assert.Equal("where%5Btitle%5D%5Bin%5D%5B%5D", _strictEncoder.Stringify(Tree(obj)));
+    }
+
+    [Fact]
+    public void ShouldWriteAnEmptyArrayBesideOtherOperators()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["views"] = new Dictionary<string, object?>
+                {
+                    ["in"] = new List<object?>(),
+                    ["greater_than"] = 1,
+                }
+            }
+        };
+
+        Assert.Equal("where[views][in][]&where[views][greater_than]=1", _encoder.Stringify(Tree(obj)));
+    }
+
+    [Fact]
+    public void ShouldWriteAnEmptyArrayInsideAnArrayAtItsIndex()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["tags"] = new Dictionary<string, object?>
+                {
+                    ["in"] = new List<object?> { "a", new List<object?>(), "b" }
+                }
+            }
+        };
+
+        Assert.Equal("where[tags][in][0]=a&where[tags][in][1][]&where[tags][in][2]=b", _encoder.Stringify(Tree(obj)));
+    }
+
+    [Fact]
+    public void ShouldWriteAnArrayHoldingOnlyAnEmptyArray()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["tags"] = new Dictionary<string, object?>
+                {
+                    ["in"] = new List<object?> { new List<object?>() }
+                }
+            }
+        };
+
+        Assert.Equal("where[tags][in][0][]", _encoder.Stringify(Tree(obj)));
+    }
+
+    [Fact]
+    public void ShouldStillWriteNothingForAnEmptyObject()
+    {
+        var obj = new Dictionary<string, object?>
+        {
+            ["where"] = new Dictionary<string, object?>
+            {
+                ["tags"] = new Dictionary<string, object?>
+                {
+                    ["in"] = new List<object?> { "a", new Dictionary<string, object?>(), "b" }
+                }
+            }
+        };
+
+        // An element that writes nothing keeps its index, as before.
+        Assert.Equal("where[tags][in][0]=a&where[tags][in][2]=b", _encoder.Stringify(Tree(obj)));
     }
 
     [Fact]
